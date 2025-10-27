@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        .status {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #4CAF50;
+        }
+        .error {
+            border-left-color: #f44336;
+        }
+        h1 {
+            color: #333;
+        }
+        .success {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .fail {
+            color: #f44336;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Диагностика загрузки</h1>
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function addStatus(message, success = true) {
+            const div = document.createElement('div');
+            div.className = 'status' + (success ? '' : ' error');
+            div.innerHTML = `<span class="${success ? 'success' : 'fail'}">${success ? '✅' : '❌'}</span> ${message}`;
+            results.appendChild(div);
+        }
+
+        // Тест 1: HTML загрузился
+        addStatus('HTML файл загружен');
+
+        // Тест 2: JavaScript работает
+        addStatus('JavaScript работает');
+
+        // Тест 3: Проверка localStorage
+        try {
+            localStorage.setItem('test', '1');
+            localStorage.removeItem('test');
+            addStatus('localStorage работает');
+        } catch (e) {
+            addStatus('localStorage НЕ работает: ' + e.message, false);
+        }
+
+        // Тест 4: Telegram WebApp
+        if (window.Telegram?.WebApp) {
+            addStatus('Telegram WebApp API найден');
+        } else {
+            addStatus('Telegram WebApp API не найден (это нормально если открыто не в Telegram)', true);
+        }
+
+        // Тест 5: Загрузка React
+        const script1 = document.createElement('script');
+        script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js';
+        script1.onload = () => {
+            addStatus('React загружен');
+            
+            // Тест 6: Загрузка ReactDOM
+            const script2 = document.createElement('script');
+            script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js';
+            script2.onload = () => {
+                addStatus('ReactDOM загружен');
+                
+                // Тест 7: Проверка что React работает
+                if (window.React && window.ReactDOM) {
+                    addStatus('React и ReactDOM готовы к работе');
+                    addStatus('🎉 ВСЁ РАБОТАЕТ! Можно загружать основное приложение', true);
+                } else {
+                    addStatus('React или ReactDOM не инициализированы', false);
+                }
+            };
+            script2.onerror = () => addStatus('Ошибка загрузки ReactDOM', false);
+            document.head.appendChild(script2);
+        };
+        script1.onerror = () => addStatus('Ошибка загрузки React', false);
+        document.head.appendChild(script1);
+
+        // Информация о браузере
+        setTimeout(() => {
+            const info = document.createElement('div');
+            info.className = 'status';
+            info.innerHTML = `
+                <h3>📱 Информация о системе:</h3>
+                <p><strong>User Agent:</strong> ${navigator.userAgent}</p>
+                <p><strong>Язык:</strong> ${navigator.language}</p>
+                <p><strong>Online:</strong> ${navigator.onLine ? 'Да' : 'Нет'}</p>
+            `;
+            results.appendChild(info);
+        }, 2000);
+    </script>
+</body>
+</html>

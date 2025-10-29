@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Трекер Тренировок</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; padding: 16px; padding-bottom: 80px; }
+        .header-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 24px; color: white; margin-bottom: 16px; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 16px; }
+        .stat-item p:first-child { font-size: 14px; opacity: 0.9; margin-bottom: 4px; }
+        .stat-item p:last-child { font-size: 28px; font-weight: bold; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .btn { padding: 20px; border-radius: 12px; border: none; color: white; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .btn-green { background: #10b981; }
+        .btn-orange { background: #f59e0b; }
+        .btn-blue { background: #3b82f6; }
+        .btn-purple { background: #8b5cf6; }
+        .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .back-btn, .save-btn { background: none; border: none; color: #3b82f6; font-size: 16px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+        .save-btn { color: #10b981; }
+        input[type="text"], input[type="date"], input[type="number"], select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .exercise-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f9f9f9; border-radius: 8px; margin-bottom: 8px; }
+        .delete-btn { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 20px; }
+        .set-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+        .set-label { font-weight: 600; width: 100px; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+        .calendar-day { aspect-ratio: 1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; border: none; }
+        .day-padding { background: #f0f0f0; cursor: default; }
+        .day-workout { background: #10b981; color: white; font-weight: bold; }
+        .day-empty { background: #fff; border: 1px solid #eee; color: #666; }
+        .day-today { box-shadow: 0 0 0 2px #3b82f6; }
+        .empty-state { text-align: center; padding: 40px 20px; color: #999; }
+        .hide { display: none; }
+        /* Calendar Nav styles */
+        .month-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .month-nav h3 { margin: 0; font-size: 18px; }
+        .month-nav button { background: none; border: none; color: #3b82f6; font-size: 24px; cursor: pointer; padding: 4px 8px; }
+        .calendar-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; text-align: center; font-weight: 600; color: #666; margin-bottom: 8px; }
+        /* Chart specific styles */
+        .chart-container { position: relative; height: 250px; width: 100%; max-width: 550px; margin: 0 auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="view"></div>
+    </div>
+    <script>
+        // Глобальная вспомогательная функция для корректного получения ЛОКАЛЬНОЙ даты (YYYY-MM-DD)
+        function getLocalDateString(date) {
+            const year = date.getFullYear();
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        let exercises = [];
+        let workouts = [];
+        let currentView = 'home';
+        // ИСПРАВЛЕНО: Теперь использует локальную дату
+        let selectedDate = getLocalDateString(new Date()); 
+        let currentWorkout = [];
+        let selExId = null; 
+        let currentViewDate = new Date(); 
+        let selExIdHome = null; 
+        let selectedExIdEdit = null; 
+        
+        // Переменная для хранения ссылок на графики (чтобы их можно было уничтожить перед перерисовкой)
+        window.charts = {}; 
+
+        if (window.Telegram?.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
+        }
+
+        function init() {
+            try {
+                const ex = localStorage.getItem('workout-exercises');
+                const wo = localStorage.getItem('workout-logs');
+                exercises = ex ? JSON.parse(ex) : [];
+                workouts = wo ? JSON.parse(wo) : [];
+            } catch (e) {
+                console.error("Ошибка загрузки данных из localStorage:", e);
+                exercises = [];
+                workouts = [];
+            }
+            render();
+        }
+
+        function save() {
+            try {
+                localStorage.setItem('workout-exercises', JSON.stringify(exercises));
+                localStorage.setItem('workout-logs', JSON.stringify(workouts));
+            } catch (e) {
+                console.error("Ошибка сохранения данных в localStorage:", e);
+            }
+        }
+
+        function render() {
+            // Перед рендерингом нового вида уничтожаем старые графики, чтобы избежать утечек памяти
+            if (window.charts) {
+                Object.values(window.charts).forEach(chart => chart.destroy());
+                window.charts = {};
+            }
+
+            const views = {
+                home: renderHome,
+                exercises: renderExercises,
+                newWorkout: renderNewWorkout,
+                editWorkout: renderEditWorkout,
+                calendar: renderCalendar,
+                detail: renderDetail,
+                stats: renderStats,
+                exerciseStats: renderExerciseStats,
+                settings: renderSettings,
+                homeExDetail: renderHomeExerciseDetail, 
+                editExercise: renderEditExercise 
+            };
+            document.getElementById('view').innerHTML = views[currentView]();
+            window.scrollTo(0, 0); 
+        }
+
+        function go(view) {
+            currentView = view;
+            if (view === 'calendar' || view === 'home') {
+                 currentViewDate = new Date();
+                 // ИСПРАВЛЕНО: Теперь использует локальную дату
+                 selectedDate = getLocalDateString(new Date()); 
+            }
+            if (currentView !== 'editExercise') {
+                selectedExIdEdit = null;
+            }
+            render();
+        }
+        
+        function changeMonth(offset) {
+            currentViewDate.setDate(1); 
+            currentViewDate.setMonth(currentViewDate.getMonth() + offset);
+            render(); 
+        }
+
+        function viewHomeExDetail(exId) {
+            selExIdHome = exId;
+            go('homeExDetail');
+        }
+
+        function editEx(id) {
+            selectedExIdEdit = id;
+            go('editExercise');
+        }
+
+        function getMonday(d) {
+            d = new Date(d);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+            const monday = new Date(d.setDate(diff));
+            monday.setHours(0, 0, 0, 0);
+            return getLocalDateString(monday); // ИСПРАВЛЕНО: Теперь использует локальную дату
+        }
+
+        function getWeeklyStreak() {
+            if (!workouts.length) return 0;
+            const uniqueWeekIds = new Set(workouts.map(w => getMonday(w.date)));
+            let streak = 0;
+            let curr = new Date();
+            curr.setHours(0, 0, 0, 0);
+            let currentMonday = new Date(getMonday(curr));
+            
+            // Проверяем текущую неделю отдельно
+            const todayMonday = getMonday(new Date());
+            if (!uniqueWeekIds.has(todayMonday)) {
+                // Если на этой неделе тренировки не было, начинаем проверку с прошлой
+                currentMonday.setDate(currentMonday.getDate() - 7);
+            }
+
+
+            while (true) {
+                const id = getLocalDateString(currentMonday); // ИСПРАВЛЕНО: Теперь использует локальную дату
+                if (uniqueWeekIds.has(id)) {
+                    streak++;
+                    currentMonday.setDate(currentMonday.getDate() - 7);
+                } else {
+                    break;
+                }
+                if (streak > 260) break; 
+            }
+            return streak;
+        }
+
+        function getStreak() {
+            if (!workouts.length) return 0;
+            const dates = new Set(workouts.map(w => w.date));
+            let streak = 0;
+            let curr = new Date();
+            curr.setHours(0, 0, 0, 0);
+
+            for (let i = 0; i < 365; i++) {
+                const ds = getLocalDateString(curr); // ИСПРАВЛЕНО: Теперь использует локальную дату
+                const isWorkoutDay = dates.has(ds);
+                
+                if (i === 0) {
+                    // Сегодня: Если тренировка была, увеличиваем стрик, иначе просто идем к вчерашнему дню
+                    if (isWorkoutDay) {
+                        streak++;
+                        curr.setDate(curr.getDate() - 1);
+                    } else {
+                        curr.setDate(curr.getDate() - 1);
+                    }
+                } else {
+                    // Вчера и ранее: Если тренировка была, увеличиваем стрик и идем дальше. Иначе - стоп.
+                    if (isWorkoutDay) {
+                        streak++;
+                        curr.setDate(curr.getDate() - 1);
+                    } else {
+                        break;
+                    }
+                }
+            }
+            return streak;
+        }
+
+        function renderHome() {
+            const dayStreak = getStreak();
+            const weekStreak = getWeeklyStreak(); 
+            // ИСПРАВЛЕНО: Теперь использует локальную дату
+            const todayDateStr = getLocalDateString(new Date()); 
+            const today = workouts.find(w => w.date === todayDateStr); 
+            let h = `
+                <div class="header-card">
+                    <h1 style="font-size: 24px; margin-bottom: 8px;">💪 Трекер Тренировок</h1>
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <p>Стрик</p>
+                            <p>(Дни) 🔥</p>
+                            <p>${dayStreak}</p>
+                        </div>
+                        <div class="stat-item">
+                            <p>Стрик</p>
+                            <p>(Недели) 🗓️</p>
+                            <p>${weekStreak}</p>
+                        </div>
+                        <div class="stat-item">
+                            <p>Всего</p>
+                            <p>Тренировок</p>
+                            <p>${workouts.length}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="btn-grid">
+                    <button class="btn btn-green" onclick="go('newWorkout')"><span style="font-size: 32px;">➕</span><span>Новая тренировка</span></button>
+                    <button class="btn btn-orange" onclick="go('exercises')"><span style="font-size: 32px;">🏋️</span><span>Упражнения</span></button>
+                    <button class="btn btn-blue" onclick="go('calendar')"><span style="font-size: 32px;">📅</span><span>Календарь</span></button>
+                    <button class="btn btn-purple" onclick="go('stats')"><span style="font-size: 32px;">📊</span><span>Статистика</span></button>
+                </div>
+                <button class="btn btn-blue" onclick="go('settings')" style="width: 100%; margin-top: 12px; background: #6b7280; margin-bottom: 16px;">
+                    <span style="font-size: 20px;">⚙️ Настройки</span>
+                </button>
+            `;
+            if (today) {
+                h += `
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 style="margin: 0;">Сегодняшняя тренировка</h3>
+                        <button onclick="editToday()" class="save-btn" style="background: #3b82f6; box-shadow: none; padding: 8px 12px; font-size: 16px;">✏️ Редактировать</button>
+                    </div>`;
+                today.exercises.forEach(ex => {
+                    const e = exercises.find(e => e.id === ex.exerciseId);
+                    const t = e ? e.type : 'reps';
+                    const totalReps = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
+                    let d = '';
+                    if (t === 'weight') {
+                        const tw = ex.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0);
+                        d = `${ex.sets.length} подходов • ${totalReps} повт • ${Math.round(tw)} кг`;
+                    } else if (t === 'distance') d = `${ex.sets.length} подходов • ${totalReps.toFixed(1)} км`;
+                    else if (t === 'time') d = `${ex.sets.length} подходов • ${Math.round(totalReps)} мин`;
+                    else d = `${ex.sets.length} подходов • ${totalReps} повторений`;
+                    
+                    h += `<div style="padding: 12px 0; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="viewHomeExDetail('${ex.exerciseId}')">
+                        <div>
+                            <div style="font-weight: 600;">${ex.exerciseName}</div>
+                            <div style="color: #666; font-size: 14px;">${d}</div>
+                        </div>
+                        <span style="font-size: 24px; color: #bbb;">›</span>
+                    </div>`;
+                });
+                h += '</div>';
+            }
+            return h;
+        }
+
+        function renderHomeExerciseDetail() {
+            if (!selExIdHome) return go('home'); 
+            // ИСПРАВЛЕНО: Теперь использует локальную дату
+            const todayDate = getLocalDateString(new Date()); 
+            const wo = workouts.find(w => w.date === todayDate);
+            if (!wo) { selExIdHome = null; return go('home'); } 
+            const ex = wo.exercises.find(e => e.exerciseId === selExIdHome);
+            if (!ex) { selExIdHome = null; return go('home'); } 
+            const eBase = exercises.find(e => e.id === ex.exerciseId);
+            const t = eBase ? eBase.type : 'reps';
+            let h = `<div class="top-bar">
+                        <button class="back-btn" onclick="go('home')">←</button>
+                        <h2 style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ex.exerciseName}</h2>
+                        <div style="width: 36px;"></div>
+                     </div>`;
+            h += `<div class="card">`;
+            ex.sets.forEach(set => {
+                h += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 4px; border-bottom: 1px solid #eee;">
+                    <span style="font-weight: 600; color: #555;">Подход ${set.setNumber}</span>
+                    <span style="color: #000; font-size: 16px; font-weight: 500;">`;
+                if (t === 'weight') h += `${set.weight || 0} кг × ${set.reps || 0} повт`;
+                else if (t === 'distance') h += `${(set.reps || 0).toFixed(1)} км`;
+                else if (t === 'time') h += `${set.reps || 0} мин`;
+                else h += `${set.reps || 0} повторений`;
+                h += `</span></div>`;
+            });
+            let sum = '';
+            if (t === 'weight') {
+                const tr = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
+                const tw = ex.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0);
+                sum = `${ex.sets.length} подходов • ${tr} повт • ${Math.round(tw)} кг общий`;
+            } else if (t === 'distance') {
+                const tr = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
+                sum = `${ex.sets.length} подходов • ${tr.toFixed(1)} км всего`;
+            } else if (t === 'time') {
+                const tr = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
+                sum = `${ex.sets.length} подходов • ${Math.round(tr)} мин всего`;
+            } else {
+                const tr = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
+                sum = `${ex.sets.length} подходов • ${tr} повторений`;
+            }
+            h += `<div style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #ddd; color: #333; font-weight: 600; text-align: right; font-size: 14px;">Всего: ${sum}</div></div>`;
+            return h;
+        }
+
+        function renderExercises() {
+            let h = `<div class="top-bar"><button class="back-btn" onclick="go('home')">← Назад</button><h2>Упражнения</h2><div style="width: 36px;"></div></div>
+                <div class="card"><input type="text" id="newEx" placeholder="Название упражнения" style="margin-bottom: 12px;">
+                <select id="exType" style="margin-bottom: 12px;"><option value="reps">Повторения (Reps)</option><option value="weight">Вес + повторения (Kg + Reps)</option>
+                <option value="distance">Расстояние (Km)</option><option value="time">Время (Min)</option></select>
+                <button class="btn btn-green" style="width: 100%; padding: 12px;" onclick="addEx()">Добавить упражнение</button></div>`;
+            if (!exercises.length) h += '<div class="empty-state"><div style="font-size: 48px;">🏋️</div><p>Нет упражнений</p></div>';
+            else exercises.forEach(ex => {
+                const tl = ex.type === 'weight' ? '🏋️ Вес' : ex.type === 'distance' ? '🚴 Км' : ex.type === 'time' ? '⏱️ Время' : '🔢 Повт';
+                h += `<div class="exercise-item"><div><span style="font-weight: 600;">${ex.name}</span>
+                    <div style="font-size: 12px; color: #666; margin-top: 2px;">${tl}</div></div>
+                    <div><button class="delete-btn" onclick="editEx('${ex.id}')" style="color: #3b82f6; margin-right: 12px;">✏️</button>
+                    <button class="delete-btn" onclick="delEx('${ex.id}')">🗑️</button></div></div>`;
+            });
+            return h;
+        }
+
+        function renderEditExercise() {
+            if (!selectedExIdEdit) return go('exercises');
+            const ex = exercises.find(e => e.id === selectedExIdEdit);
+            if (!ex) return go('exercises');
+            
+            let h = `<div class="top-bar"><button class="back-btn" onclick="go('exercises')">← Назад</button><h2>Редактировать</h2><div style="width: 36px;"></div></div>
+                <div class="card">
+                    <h3 style="margin-bottom: 12px;">${ex.name}</h3>
+                    <input type="text" id="editExName" value="${ex.name}" placeholder="Название упражнения" style="margin-bottom: 12px;">
+                    <select id="editExType" style="margin-bottom: 12px;">
+                        <option value="reps" ${ex.type === 'reps' ? 'selected' : ''}>Повторения (Reps)</option>
+                        <option value="weight" ${ex.type === 'weight' ? 'selected' : ''}>Вес + повторения (Kg + Reps)</option>
+                        <option value="distance" ${ex.type === 'distance' ? 'selected' : ''}>Расстояние (Km)</option>
+                        <option value="time" ${ex.type === 'time' ? 'selected' : ''}>Время (Min)</option>
+                    </select>
+                    <button class="btn btn-green" style="width: 100%; padding: 12px;" onclick="saveEditEx()">Сохранить изменения</button>
+                    <button class="btn btn-orange" style="width: 100%; padding: 12px; margin-top: 8px; background: #ef4444;" onclick="delEx('${ex.id}', true)">Удалить упражнение</button>
+                </div>`;
+            return h;
+        }
+
+        function saveEditEx() {
+            const ex = exercises.find(e => e.id === selectedExIdEdit);
+            const newName = document.getElementById('editExName').value.trim();
+            const newType = document.getElementById('editExType').value;
+
+            if (newName && ex) {
+                ex.name = newName;
+                ex.type = newType;
+                
+                // Обновляем имя во всех тренировках
+                workouts.forEach(wo => {
+                    wo.exercises.forEach(woEx => {
+                        if (woEx.exerciseId === ex.id) {
+                            woEx.exerciseName = newName;
+                        }
+                    });
+                });
+
+                save();
+                selectedExIdEdit = null;
+                alert('✅ Сохранено');
+                go('exercises');
+            }
+        }
+
+        function addEx() {
+            const inp = document.getElementById('newEx');
+            const typ = document.getElementById('exType');
+            if (inp.value.trim()) {
+                exercises.push({ id: Date.now().toString(), name: inp.value.trim(), type: typ.value, createdAt: new Date().toISOString() });
+                save();
+                inp.value = '';
+                render();
+            }
+        }
+
+        function delEx(id, fromEdit = false) {
+            if (confirm('Вы уверены? Это также удалит все данные, связанные с этим упражнением, из истории тренировок.')) {
+                exercises = exercises.filter(e => e.id !== id);
+                
+                // Удаляем это упражнение из всех записей тренировок
+                workouts.forEach(w => {
+                    w.exercises = w.exercises.filter(ex => ex.exerciseId !== id);
+                });
+                // Удаляем тренировки, если они стали пустыми
+                workouts = workouts.filter(w => w.exercises.length > 0);
+
+                save();
+                alert('✅ Удалено');
+                if (fromEdit) {
+                    selectedExIdEdit = null;
+                    go('exercises');
+                } else {
+                    render();
+                }
+            }
+        }
+
+        function renderNewWorkout() {
+            let h = `<div class="top-bar"><button class="back-btn" onclick="go('home')">← Назад</button><h2>Новая тренировка</h2>
+                <button class="save-btn" onclick="saveWo()">Сохранить ✓</button></div>
+                <div class="card"><input type="date" id="woDate" value="${selectedDate}" onchange="selectedDate = this.value"></div>`;
+            if (!exercises.length) h += '<div class="empty-state"><p>Сначала добавьте упражнения</p><button class="btn btn-orange" style="margin-top: 16px;" onclick="go(\'exercises\')">Добавить упражнения</button></div>';
+            else {
+                h += '<div class="card"><h3 style="margin-bottom: 12px;">Выберите упражнение:</h3>';
+                const exIdsInWorkout = currentWorkout.map(w => w.exerciseId);
+                
+                exercises.forEach(ex => {
+                    const tl = ex.type === 'weight' ? '🏋️' : ex.type === 'distance' ? '🚴' : ex.type === 'time' ? '⏱️' : '🔢';
+                    const isIn = exIdsInWorkout.includes(ex.id);
+                    h += `<button class="btn ${isIn ? 'btn-green' : 'btn-blue'}" style="width: 100%; margin-bottom: 8px; padding: 12px;" onclick="addSet('${ex.id}')">${tl} ${ex.name}${isIn ? ' (Добавлено)' : ''}</button>`;
+                });
+                h += '</div>';
+                if (currentWorkout.length) h += renderSets();
+            }
+            return h;
+        }
+
+        function renderSets() {
+            let h = '';
+            currentWorkout.forEach(w => {
+                const e = exercises.find(e => e.id === w.exerciseId);
+                const t = e ? e.type : 'reps';
+                h += `<div class="card"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin: 0;">${w.exerciseName}</h4>
+                        <button onclick="delExWo('${w.exerciseId}')" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;">Удалить</button></div><div>`;
+                w.sets.forEach((set, i) => {
+                    h += `<div class="set-row"><span class="set-label">Подход ${set.setNumber}:</span>`;
+                    if (t === 'weight') h += `<input type="number" value="${set.weight || 0}" onchange="upW('${w.exerciseId}', ${i}, this.value)" placeholder="Вес (кг)" style="flex: 0.5; margin-right: 4px;">
+                        <input type="number" value="${set.reps || 0}" onchange="upR('${w.exerciseId}', ${i}, this.value)" placeholder="Повт" style="flex: 0.5;">`;
+                    else if (t === 'distance') h += `<input type="number" step="0.1" value="${set.reps || 0}" onchange="upR('${w.exerciseId}', ${i}, this.value)" placeholder="Км" style="flex: 1;">`;
+                    else if (t === 'time') h += `<input type="number" value="${set.reps || 0}" onchange="upR('${w.exerciseId}', ${i}, this.value)" placeholder="Мин" style="flex: 1;">`;
+                    else h += `<input type="number" value="${set.reps || 0}" onchange="upR('${w.exerciseId}', ${i}, this.value)" placeholder="Повторения" style="flex: 1;">`;
+                    h += `<button class="delete-btn" onclick="delSet('${w.exerciseId}', ${i})">✕</button></div>`;
+                });
+                h += `</div><button class="btn btn-green" style="width: 100%; padding: 10px; margin-top: 8px;" onclick="addSet('${w.exerciseId}')">+ Добавить подход</button></div>`;
+            });
+            return h;
+        }
+
+        function addSet(exId) {
+            const ex = exercises.find(e => e.id === exId);
+            if (!ex) return;
+            let existing = currentWorkout.find(w => w.exerciseId === exId);
+            
+            let reps = 0, weight = 0;
+            if (existing && existing.sets.length > 0) {
+                // Автозаполнение из предыдущего подхода
+                const lastSet = existing.sets[existing.sets.length - 1];
+                reps = lastSet.reps || 0;
+                weight = lastSet.weight || 0;
+            } else if (!existing) {
+                 // Поиск последнего значения из истории
+                const history = workouts.filter(w => w.exercises.some(e => e.exerciseId === exId)).pop();
+                if (history) {
+                    const histEx = history.exercises.find(e => e.exerciseId === exId);
+                    if (histEx && histEx.sets.length > 0) {
+                        const lastSet = histEx.sets[histEx.sets.length - 1];
+                        reps = lastSet.reps || 0;
+                        weight = lastSet.weight || 0;
+                    }
+                }
+            }
+
+
+            if (existing) {
+                existing.sets.push({ reps: reps, weight: weight, setNumber: existing.sets.length + 1 });
+            } else {
+                currentWorkout.push({ exerciseId: exId, exerciseName: ex.name, sets: [{ reps: reps, weight: weight, setNumber: 1 }] });
+                // Сортировка по имени, чтобы новый элемент появился в алфавитном порядке
+                currentWorkout.sort((a, b) => a.exerciseName.localeCompare(b.exerciseName));
+                existing = currentWorkout.find(w => w.exerciseId === exId);
+            }
+            render();
+            
+            // Прокрутка к добавленному подходу
+            setTimeout(() => {
+                const setsContainer = document.querySelector(`.card h4:contains('${existing.exerciseName}')`).closest('.card');
+                if (setsContainer) setsContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }, 100);
+        }
+
+        // Вспомогательная функция для jQuery-подобного поиска (для setTimeout)
+        (function() {
+            if (!Element.prototype.matches) {
+                Element.prototype.matches = Element.prototype.msMatchesSelector || Element.prototype.webkitMatchesSelector;
+            }
+            if (!Element.prototype.closest) {
+                Element.prototype.closest = function(s) {
+                    let el = this;
+                    do {
+                        if (el.matches(s)) return el;
+                        el = el.parentElement || el.parentNode;
+                    } while (el !== null && el.nodeType === 1);
+                    return null;
+                };
+            }
+            if (!String.prototype.includes) {
+                String.prototype.includes = function(search, start) {
+                    'use strict';
+                    if (typeof start !== 'number') start = 0;
+                    if (start + search.length > this.length) return false;
+                    else return this.indexOf(search, start) !== -1;
+                };
+            }
+            // Simple :contains helper
+            document.querySelector(':contains') || (function() {
+                Element.prototype.containsText = function(text) {
+                    return this.textContent.includes(text);
+                };
+                document.querySelector = (function(orig) {
+                    return function(selector) {
+                        if (selector.includes(':contains')) {
+                            const [base, text] = selector.split(':contains(').map(s => s.replace(/['")]/g, '').trim());
+                            return Array.from(orig.call(document, base)).find(el => el.containsText(text));
+                        }
+                        return orig.call(document, selector);
+                    };
+                })(document.querySelector);
+            })();
+        })();
+
+        function upR(exId, idx, val) {
+            const w = currentWorkout.find(w => w.exerciseId === exId);
+            if (w) w.sets[idx].reps = parseFloat(val) || 0;
+        }
+
+        function upW(exId, idx, val) {
+            const w = currentWorkout.find(w => w.exerciseId === exId);
+            if (w) w.sets[idx].weight = parseFloat(val) || 0;
+        }
+
+        function delSet(exId, idx) {
+            const w = currentWorkout.find(w => w.exerciseId === exId);
+            if (w) {
+                w.sets.splice(idx, 1);
+                w.sets.forEach((s, i) => s.setNumber = i + 1);
+                if (!w.sets.length) currentWorkout = currentWorkout.filter(w => w.exerciseId !== exId);
+                render();
+            }
+        }
+
+        function saveWo() {
+            if (!currentWorkout.length) { alert('Добавьте хотя бы один подход.'); return; }
+            
+            // Очищаем от пустых подходов (если пользователь ввел 0 и 0)
+            const cleanedWorkout = currentWorkout.map(w => ({
+                ...w,
+                sets: w.sets.filter(s => (s.reps || 0) > 0 || (w.weight && (s.weight || 0) > 0))
+            })).filter(w => w.sets.length > 0);
+
+            if (!cleanedWorkout.length) { alert('Все подходы пустые. Добавьте данные.'); return; }
+
+
+            const wo = { id: Date.now().toString(), date: selectedDate, exercises: cleanedWorkout, timestamp: new Date().toISOString() };
+            const idx = workouts.findIndex(w => w.date === selectedDate);
+            if (idx >= 0) workouts[idx] = wo;
+            else workouts.push(wo);
+            
+            // Сортировка тренировок по дате
+            workouts.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            save();
+            currentWorkout = [];
+            alert('✅ Сохранено');
+            go('home');
+        }
+
+        function editToday() {
+            const today = getLocalDateString(new Date()); // ИСПРАВЛЕНО
+            const wo = workouts.find(w => w.date === today);
+            if (wo) {
+                selectedDate = today;
+                currentWorkout = JSON.parse(JSON.stringify(wo.exercises));
+                go('editWorkout');
+            }
+        }
+
+        function editWo(date) {
+            const wo = workouts.find(w => w.date === date);
+            if (wo) {
+                selectedDate = date;
+                currentWorkout = JSON.parse(JSON.stringify(wo.exercises));
+                go('editWorkout');
+            }
+        }
+
+        function renderEditWorkout() {
+            let h = `<div class="top-bar"><button class="back-btn" onclick="cancelEdit()">← Отмена</button><h2>Редактировать</h2>
+                <button class="save-btn" onclick="saveEdit()">Сохранить ✓</button></div>
+                <div class="card"><div style="display: flex; justify-content: space-between; align-items: center;"><div>
+                <p style="color: #666; font-size: 14px; margin-bottom: 4px;">Дата:</p>
+                <p style="font-size: 18px; font-weight: 600;">${new Date(selectedDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</p></div>
+                <button onclick="delWo()" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">🗑️ Удалить</button></div></div>`;
+            if (exercises.length) {
+                h += '<div class="card"><h3 style="margin-bottom: 12px;">Добавить упражнение:</h3>';
+                const exIdsInWorkout = currentWorkout.map(w => w.exerciseId);
+                exercises.forEach(ex => {
+                    const tl = ex.type === 'weight' ? '🏋️' : ex.type === 'distance' ? '🚴' : ex.type === 'time' ? '⏱️' : '🔢';
+                    const isIn = exIdsInWorkout.includes(ex.id);
+                    h += `<button class="btn ${isIn ? 'btn-green' : 'btn-blue'}" style="width: 100%; margin-bottom: 8px; padding: 12px;" onclick="addSet('${ex.id}')">${tl} ${ex.name}${isIn ? ' (Добавлено)' : ''}</button>`;
+                });
+                h += '</div>';
+            }
+            if (currentWorkout.length) {
+                h += renderSets();
+            } else {
+                 h += '<div class="empty-state"><p>Удалите тренировку или добавьте упражнение.</p></div>';
+            }
+            return h;
+        }
+
+        function cancelEdit() {
+            currentWorkout = [];
+            go('home');
+        }
+
+        function saveEdit() {
+            if (!currentWorkout.length) { 
+                if (confirm('Тренировка пуста. Удалить ее?')) {
+                    delWo(false);
+                    return;
+                } else {
+                    return;
+                }
+            }
+            
+            // Очистка от пустых подходов
+            const cleanedWorkout = currentWorkout.map(w => ({
+                ...w,
+                sets: w.sets.filter(s => (s.reps || 0) > 0 || (w.weight && (s.weight || 0) > 0))
+            })).filter(w => w.sets.length > 0);
+
+            if (!cleanedWorkout.length) { 
+                if (confirm('Все подходы пусты. Удалить тренировку?')) {
+                    delWo(false);
+                    return;
+                } else {
+                    return;
+                }
+            }
+
+
+            const wo = { id: Date.now().toString(), date: selectedDate, exercises: cleanedWorkout, timestamp: new Date().toISOString() };
+            const idx = workouts.findIndex(w => w.date === selectedDate);
+            if (idx >= 0) workouts[idx] = wo;
+            else workouts.push(wo);
+            
+            // Сортировка тренировок по дате
+            workouts.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            save();
+            currentWorkout = [];
+            alert('✅ Сохранено');
+            go('home');
+        }
+
+        function delWo(alertUser = true) {
+            if (confirm('Удалить тренировку?')) {
+                workouts = workouts.filter(w => w.date !== selectedDate);
+                save();
+                currentWorkout = [];
+                if (alertUser) alert('✅ Удалено');
+                go('home');
+            }
+        }
+
+        function delExWo(exId) {
+            if (confirm('Удалить упражнение из этой тренировки?')) {
+                currentWorkout = currentWorkout.filter(w => w.exerciseId !== exId);
+                render();
+            }
+        }
+
+        function renderCalendar() {
+            const workoutDates = new Set(workouts.map(w => w.date));
+            // ИСПРАВЛЕНО: Теперь использует локальную дату
+            const todayStr = getLocalDateString(new Date());
+            const year = currentViewDate.getFullYear();
+            const month = currentViewDate.getMonth(); 
+            const firstDayOfMonth = new Date(year, month, 1);
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            let startDayOfWeek = firstDayOfMonth.getDay(); 
+            if (startDayOfWeek === 0) startDayOfWeek = 7; 
+            const paddingDays = startDayOfWeek - 1; 
+            const monthName = currentViewDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+            let h = `<div class="top-bar">
+                        <button class="back-btn" onclick="go('home')">←</button>
+                        <h2>Календарь</h2>
+                        <div style="width: 36px;"></div>
+                     </div>
+                     <div class="card">
+                        <div class="month-nav">
+                            <button onclick="changeMonth(-1)">‹ Пред.</button>
+                            <h3>${monthName}</h3>
+                            <button onclick="changeMonth(1)">След. ›</button>
+                        </div>
+                        <div class="calendar-header">
+                            <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+                        </div>
+                        <div class="calendar-grid">`;
+            for (let i = 0; i < paddingDays; i++) {
+                h += `<div class="calendar-day day-padding"></div>`;
+            }
+            for (let day = 1; day <= daysInMonth; day++) {
+                const d = new Date(year, month, day);
+                // ИСПРАВЛЕНО: Теперь использует локальную дату
+                const ds = getLocalDateString(d); 
+                const hasWorkout = workoutDates.has(ds);
+                const isToday = (ds === todayStr);
+                let classes = 'calendar-day';
+                if (hasWorkout) classes += ' day-workout';
+                else classes += ' day-empty';
+                if (isToday) classes += ' day-today';
+                const action = hasWorkout ? `onclick="viewDetail('${ds}')"` : 'disabled';
+                h += `<button class="${classes}" ${action}>${day}</button>`;
+            }
+            h += '</div></div>';
+            return h;
+        }
+
+        function viewDetail(date) {
+            const wo = workouts.find(w => w.date === date);
+            if (!wo) return;
+            selectedDate = date;
+            go('detail');
+        }
+
+        function renderDetail() {
+            const wo = workouts.find(w => w.date === selectedDate);
+            if (!wo) return '';
+            let h = `<div class="top-bar"><button class="back-btn" onclick="go('calendar')">← Назад</button>
+                <h2>${new Date(selectedDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</h2>
+                <button onclick="editWo('${selectedDate}')" style="background: #3b82f6; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 14px; cursor: pointer;">✏️</button></div>`;
+            wo.exercises.forEach(ex => {
+                const e = exercises.find(e => e.id === ex.exerciseId);
+                const t = e ? e.type : 'reps';
+                h += `<div class="card"><h3 style="margin-bottom: 12px;">${ex.exerciseName}</h3>`;
+                ex.sets.forEach(set => {
+                    h += `<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                        <span style="font-weight: 600;">Подход ${set.setNumber}</span><span style="color: #666;">`;
+                    if (t === 'weight') h += `${set.weight || 0} кг × ${set.reps || 0} повт`;
+                    else if (t === 'distance') h += `${(set.reps || 0)} км`;
+                    else if (t === 'time') h += `${set.reps || 0} мин`;
+                    else h += `${set.reps || 0} повторений`;
+                    h += `</span></div>`;
+                });
+                let sum = '';
+                if (t === 'weight') {
+                    const tr = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
+                    const tw = ex.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0);
+                    sum = `${ex.sets.length} подходов • ${tr} повт • ${Math.round(tw)} кг общий`;
+                } else if (t === 'distance') {
+                    const td = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
+                    sum = `${ex.sets.length} подходов • ${td.toFixed(1)} км всего`;
+                } else if (t === 'time') {
+                    const tt = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
+                    sum = `${ex.sets.length} подходов • ${Math.round(tt)} мин всего`;
+                } else {
+                    const tr = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
+                    sum = `${ex.sets.length} подходов • ${tr} повторений`;
+                }
+                h += `<div style="margin-top: 12px; padding-top: 12px; border-top: 2px solid #eee; color: #666; font-size: 14px;">Всего: ${sum}</div></div>`;
+            });
+            return h;
+        }
+
+        function renderStats() {
+            let h = `<div class="top-bar"><button class="back-btn" onclick="go('home')">← Назад</button><h2>Статистика</h2><div style="width: 36px;"></div></div>`;
+            if (!exercises.length) h += '<div class="empty-state"><div style="font-size: 48px;">📊</div><p>Нет упражнений</p></div>';
+            else {
+                exercises.forEach(ex => {
+                    const exWo = workouts.filter(w => w.exercises.some(e => e.exerciseId === ex.id));
+                    let ts = 0, tr = 0, tw = 0, mr = 0, mw = 0;
+                    exWo.forEach(w => {
+                        const e = w.exercises.find(e => e.exerciseId === ex.id);
+                        if (e) {
+                            ts += e.sets.length;
+                            e.sets.forEach(s => {
+                                const reps = s.reps || 0;
+                                const weight = s.weight || 0;
+                                tr += reps;
+                                if (ex.type === 'weight') {
+                                    tw += weight * reps;
+                                    if (weight > mw) mw = weight;
+                                }
+                                if (reps > mr) mr = reps;
+                            });
+                        }
+                    });
+                    
+                    let trDisplay = tr;
+                    if (ex.type === 'distance') trDisplay = tr.toFixed(1);
+                    else if (ex.type === 'time') trDisplay = Math.round(tr);
+                    
+                    let mrDisplay = mr;
+                    if (ex.type === 'distance') mrDisplay = mr.toFixed(1);
+                    else if (ex.type === 'time') mrDisplay = Math.round(mr);
+
+
+                    h += `<div class="card" onclick="viewExStats('${ex.id}')" style="cursor: pointer;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 style="margin: 0;">${ex.name}</h3><span style="font-size: 20px;">📊</span></div>
+                        <div class="stat-grid" style="grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                        <div><p style="font-size: 12px; color: #666;">Тренировок</p><p style="font-size: 20px; font-weight: bold; color: #8b5cf6;">${exWo.length}</p></div>
+                        <div><p style="font-size: 12px; color: #666;">Подходов</p><p style="font-size: 20px; font-weight: bold; color: #8b5cf6;">${ts}</p></div>`;
+                    if (ex.type === 'weight') h += `<div><p style="font-size: 12px; color: #666;">Общий вес</p><p style="font-size: 20px; font-weight: bold; color: #8b5cf6;">${Math.round(tw)} кг</p></div>
+                        <div><p style="font-size: 12px; color: #666;">Макс вес</p><p style="font-size: 20px; font-weight: bold; color: #8b5cf6;">${mw} кг</p></div>`;
+                    else if (ex.type === 'distance') h += `<div><p style="font-size: 12px; color: #666;">Всего км</p><p style="font-size: 20px; font-weight: bold; color: #8b5cf6;">${trDisplay}</p></div>
+                        <div><p style="font-size: 12px; color: #666;">Макс км</p><p style="font-size: 20px; font-weight: bold; color: #8b5cf6;">${mrDisplay}</p></div>`;
+                    else if (ex.type === 'time') h += `<div><p style="font-size: 12px; color: #666;">Всего мин</p><p style="font-size: 20px; font-weight: bold; color: #8b5cf6;">${trDisplay}</p></div>
+                        <div><p style="font-size: 12px; color: #666;">Макс мин</p><p style="font-size: 20px; font-weight: bold; color: #8b5cf6;">${mrDisplay}</p></div>`;
+                    else h += `<div><p style="font-size: 12px; color: #666;">Повторений</p><p style="font-size: 20px; font-weight: bold; color: #8b5cf6;">${trDisplay}</p></div>
+                        <div><p style="font-size: 12px; color: #666;">Макс</p><p style="font-size: 20px; font-weight: bold; color: #8b5cf6;">${mrDisplay}</p></div>`;
+                    h += `</div><div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; text-align: center; color: #8b5cf6; font-size: 14px; font-weight: 600;">Нажмите для детальной статистики →</div></div>`;
+                });
+            }
+            return h;
+        }
+
+        let selExId = null;
+        function viewExStats(id) {
+            selExId = id;
+            go('exerciseStats');
+        }
+        
+        // ФУНКЦИЯ ДЛЯ ГЕНЕРАЦИИ ГРАФИКОВ (Chart.js)
+        function drawChart(id, data, labels, type, color) {
+            const ctx = document.getElementById(id);
+            if (!ctx) return;
+            
+            // Уничтожаем предыдущий экземпляр графика, если он существует
+            if (window.charts[id]) {
+                window.charts[id].destroy();
+            }
+
+            window.charts[id] = new Chart(ctx, {
+                type: type, 
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '',
+                        data: data,
+                        backgroundColor: type === 'bar' ? color : color + '33', 
+                        borderColor: color,
+                        borderWidth: type === 'line' ? 3 : 0,
+                        tension: 0.4,
+                        pointRadius: type === 'line' ? 4 : 0,
+                        fill: type === 'line' ? 'origin' : false, // 'origin' для градиентной заливки под линией
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0, 0, 0, 0.1)' } 
+                        },
+                        x: { 
+                            grid: { display: false } 
+                        }
+                    }
+                }
+            });
+        }
+        
+        // ФУНКЦИЯ ДЛЯ ДЕТАЛЬНОЙ СТАТИСТИКИ
+        function renderExerciseStats() {
+            if (!selExId) return '';
+            const ex = exercises.find(e => e.id === selExId);
+            if (!ex) return '';
+            
+            // Фильтруем тренировки, которые содержат это упражнение
+            const exWo = workouts.filter(w => w.exercises.some(e => e.exerciseId === ex.id));
+            let ts = 0, tr = 0, tw = 0, mr = 0, mw = 0; // total sets, total reps, total weight, max reps, max weight
+
+            exWo.forEach(w => {
+                const e = w.exercises.find(e => e.exerciseId === ex.id);
+                if (e) {
+                    ts += e.sets.length;
+                    e.sets.forEach(s => {
+                        const reps = s.reps || 0;
+                        const weight = s.weight || 0;
+                        tr += reps;
+                        if (ex.type === 'weight') {
+                            tw += weight * reps;
+                            if (weight > mw) mw = weight;
+                        }
+                        if (reps > mr) mr = reps;
+                    });
+                }
+            });
+
+            let ul = '', us = ''; // Unit Label, Unit Short
+            if (ex.type === 'distance') { ul = 'Километры'; us = 'км'; }
+            else if (ex.type === 'time') { ul = 'Минуты'; us = 'мин'; }
+            else { ul = 'Повторения'; us = 'повт'; }
+
+            let h = `<div class="top-bar"><button class="back-btn" onclick="go('stats')">←</button>
+                <h2 style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${ex.name}</h2><div style="width: 36px;"></div></div>
+                <div class="header-card"><h3 style="margin-bottom: 16px;">Общая статистика</h3><div class="stat-grid" style="grid-template-columns: repeat(2, 1fr); gap: 16px;">
+                <div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Тренировок</p><p style="font-size: 20px; color: white;">${exWo.length}</p></div>
+                <div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Подходов</p><p style="font-size: 20px; color: white;">${ts}</p></div>`;
+            
+            if (ex.type === 'weight') h += `<div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Макс. вес</p><p style="font-size: 20px; color: white;">${mw} кг</p></div>
+                <div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Общий объем</p><p style="font-size: 20px; color: white;">${Math.round(tw)} кг</p></div>`;
+            else if (ex.type === 'distance') h += `<div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Макс за подход</p><p style="font-size: 20px; color: white;">${mr.toFixed(1)} км</p></div>
+                <div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Всего</p><p style="font-size: 20px; color: white;">${tr.toFixed(1)} км</p></div>`;
+            else if (ex.type === 'time') h += `<div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Макс за подход</p><p style="font-size: 20px; color: white;">${Math.round(mr)} мин</p></div>
+                <div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Всего</p><p style="font-size: 20px; color: white;">${Math.round(tr)} мин</p></div>`;
+            else h += `<div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Макс за подход</p><p style="font-size: 20px; color: white;">${mr}</p></div>
+                <div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Всего</p><p style="font-size: 20px; color: white;">${tr}</p></div>`;
+            
+            h += '</div></div>'; // Закрываем stat-grid и header-card
+
+            if (!exWo.length) {
+                h += '<div class="empty-state"><div style="font-size: 48px;">📊</div><p>Нет данных для этого упражнения</p></div>';
+            } else {
+                
+                // --- 7 ДНЕЙ (НЕДЕЛЬНЫЙ) ---
+                const wd = [];
+                const today = new Date();
+                for (let i = 6; i >= 0; i--) {
+                    const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+                    const ds = getLocalDateString(d);
+                    const wo = workouts.find(w => w.date === ds);
+                    let r = 0, s = 0;
+                    if (wo) {
+                        const e = wo.exercises.find(e => e.exerciseId === ex.id);
+                        if (e) {
+                            s = e.sets.length;
+                            r = e.sets.reduce((sum, set) => sum + (set.reps || 0), 0);
+                        }
+                    }
+                    wd.push({ day: d.toLocaleDateString('ru-RU', { weekday: 'short' }), reps: r, sets: s });
+                }
+                const wt = wd.reduce((s, d) => s + d.reps, 0);
+                const ws = wd.reduce((s, d) => s + d.sets, 0);
+
+                h += `<div class="card"><h3 style="margin-bottom: 12px;">Последние 7 дней (Объем)</h3>
+                    <div class="chart-container"><canvas id="chart_wc"></canvas></div>
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: center;">
+                    <div><p style="font-size: 12px; color: #666;">Всего ${ul.toLowerCase()}</p>
+                    <p style="font-size: 18px; font-weight: bold; color: #3b82f6;">${ex.type === 'distance' ? wt.toFixed(1) : Math.round(wt)} ${us}</p></div>
+                    <div><p style="font-size: 12px; color: #666;">Всего подходов</p>
+                    <p style="font-size: 18px; font-weight: bold; color: #3b82f6;">${ws}</p></div></div></div></div>`;
+
+                // --- 30 ДНЕЙ (МЕСЯЧНЫЙ) ---
+                const md = [];
+                for (let i = 29; i >= 0; i--) {
+                    const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+                    const ds = getLocalDateString(d);
+                    const wo = workouts.find(w => w.date === ds);
+                    let r = 0;
+                    if (wo) {
+                        const e = wo.exercises.find(e => e.exerciseId === ex.id);
+                        if (e) r = e.sets.reduce((sum, set) => sum + (set.reps || 0), 0);
+                    }
+                    md.push({ date: d.getDate(), reps: r });
+                }
+                const mt = md.reduce((s, d) => s + d.reps, 0);
+                const mdLabels = md.map((d, i) => (i % 5 === 0 ? d.date : '')); // Метка каждые 5 дней
+                const mdData = md.map(d => d.reps);
+
+                h += `<div class="card"><h3 style="margin-bottom: 12px;">Последние 30 дней (Прогресс)</h3>
+                    <div class="chart-container"><canvas id="chart_mc"></canvas></div>
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; text-align: center;">
+                    <p style="font-size: 12px; color: #666;">Общий объем за месяц</p>
+                    <p style="font-size: 24px; font-weight: bold; color: #8b5cf6;">${ex.type === 'distance' ? mt.toFixed(1) : Math.round(mt)} ${us}</p></div></div>`;
+
+                // --- 12 МЕСЯЦЕВ (ГОДОВОЙ) ---
+                const yd = [];
+                for (let i = 11; i >= 0; i--) {
+                    const md = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                    // Логика фильтрации по дате с учетом локальной строки
+                    const ms = getLocalDateString(new Date(md.getFullYear(), md.getMonth(), 1));
+                    const me = getLocalDateString(new Date(md.getFullYear(), md.getMonth() + 1, 0));
+                    const mw = workouts.filter(w => w.date >= ms && w.date <= me);
+                    let r = 0, s = 0;
+                    mw.forEach(w => {
+                        const e = w.exercises.find(e => e.exerciseId === ex.id);
+                        if (e) {
+                            s += e.sets.length;
+                            r += e.sets.reduce((sum, set) => sum + (set.reps || 0), 0);
+                        }
+                    });
+                    yd.push({ month: md.toLocaleDateString('ru-RU', { month: 'short' }), reps: r, sets: s });
+                }
+                const yt = yd.reduce((s, d) => s + d.reps, 0);
+                const ys = yd.reduce((s, d) => s + d.sets, 0);
+                
+                h += `<div class="card"><h3 style="margin-bottom: 12px;">Последние 12 месяцев (Объем)</h3>
+                    <div class="chart-container"><canvas id="chart_yc"></canvas></div>
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: center;">
+                    <div><p style="font-size: 12px; color: #666;">Всего ${ul.toLowerCase()}</p>
+                    <p style="font-size: 18px; font-weight: bold; color: #10b981;">${ex.type === 'distance' ? yt.toFixed(1) : Math.round(yt)} ${us}</p></div>
+                    <div><p style="font-size: 12px; color: #666;">Всего подходов</p>
+                    <p style="font-size: 18px; font-weight: bold; color: #10b981;">${ys}</p></div></div></div></div>`;
+
+                // Инициализация графиков после рендеринга HTML
+                setTimeout(() => {
+                    drawChart('chart_wc', wd.map(d => d.reps), wd.map(d => d.day), 'bar', '#3b82f6');
+                    drawChart('chart_mc', mdData, mdLabels, 'line', '#8b5cf6');
+                    drawChart('chart_yc', yd.map(d => d.reps), yd.map(d => d.month), 'bar', '#10b981');
+                }, 50); // Небольшая задержка, чтобы дать браузеру время на отрисовку Canvas
+            }
+            return h;
+        }
+
+
+        function renderSettings() {
+            return `<div class="top-bar"><button class="back-btn" onclick="go('home')">← Назад</button><h2>Настройки</h2><div style="width: 36px;"></div></div>
+                <div class="card"><h3 style="margin-bottom: 12px;">Данные</h3>
+                <p style="color: #666; font-size: 14px; margin-bottom: 16px;">Упражнений: ${exercises.length}<br>Тренировок: ${workouts.length}</p></div>
+                <div class="card"><h3 style="margin-bottom: 8px; color: #ef4444;">⚠️ Опасная зона</h3>
+                <p style="color: #666; font-size: 14px; margin-bottom: 16px;">Эти действия нельзя отменить!</p>
+                <button onclick="resetWo()" style="width: 100%; padding: 12px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; margin-bottom: 8px; cursor: pointer;">🗑️ Удалить все тренировки</button>
+                <button onclick="resetEx()" style="width: 100%; padding: 12px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; margin-bottom: 8px; cursor: pointer;">🗑️ Удалить все упражнения</button>
+                <button onclick="resetAll()" style="width: 100%; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">⚠️ СБРОСИТЬ ВСЁ</button></div>
+                <div class="card"><h3 style="margin-bottom: 12px;">О приложении</h3>
+                <p style="color: #666; font-size: 14px;">💪 Трекер Тренировок v1.0<br>Все данные хранятся локально</p></div>`;
+        }
+
+        function resetWo() {
+            if (confirm('Удалить ВСЕ тренировки?')) {
+                workouts = [];
+                save();
+                alert('✅ Удалено');
+                render();
+            }
+        }
+
+        function resetEx() {
+            if (confirm('Удалить ВСЕ упражнения и тренировки?')) {
+                exercises = [];
+                workouts = [];
+                save();
+                alert('✅ Удалено');
+                render();
+            }
+        }
+
+        function resetAll() {
+            if (confirm('⚠️ УДАЛИТЬ ВСЕ ДАННЫЕ?')) {
+                if (confirm('Точно? Последнее предупреждение!')) {
+                    exercises = [];
+                    workouts = [];
+                    currentWorkout = [];
+                    localStorage.clear();
+                    alert('✅ Всё удалено');
+                    go('home');
+                }
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

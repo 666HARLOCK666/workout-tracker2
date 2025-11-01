@@ -25,6 +25,7 @@
             background: rgba(255, 255, 255, 0.15); 
             border-radius: 8px;
             padding: 8px 0;
+            cursor: default; /* Fix: Default cursor for stat items */
         }
         .stat-item p:first-child { 
             font-size: 11px; 
@@ -139,11 +140,13 @@
             font-size: 14px; 
             cursor: pointer; 
             border: none; 
+            padding: 0; /* Fix: Remove padding that might affect sizing */
         }
         .day-empty { background: #f0f0f0; }
         .day-padding { 
             background: #f9f9f9; 
             opacity: 0.8; 
+            cursor: default; /* Fix: Default cursor for padding days */
         } 
         .day-workout { background: #10b981; color: white; font-weight: bold; }
         .day-today { box-shadow: 0 0 0 2px #3b82f6; }
@@ -157,6 +160,7 @@
         <div id="view"></div>
     </div>
     <script>
+        // --- DATA INITIALIZATION & UTILS ---
         let exercises = [];
         let workouts = [];
         let routines = []; 
@@ -168,6 +172,7 @@
         let selExIdHome = null; 
         let selectedExIdEdit = null; 
         let selectedRoutineIdEdit = null; 
+        let isEditingWorkout = false; // New flag for workout editing context
 
         if (window.Telegram?.WebApp) {
             Telegram.WebApp.ready();
@@ -181,7 +186,7 @@
                 const rt = localStorage.getItem('workout-routines'); 
                 exercises = ex ? JSON.parse(ex) : [];
                 workouts = wo ? JSON.parse(wo) : [];
-                routines = rt ? JSON.parse(rt) : []; 
+                routines = rt ? JSON.parse(rt) : [];
             } catch (e) {
                 console.error("Ошибка загрузки данных из localStorage:", e);
                 exercises = [];
@@ -241,7 +246,8 @@
                     try {
                         const importedData = JSON.parse(e.target.result);
                         
-                        if (!importedData.exercises || !importedData.workouts || !importedData.routines) {
+                        // Basic validation
+                        if (importedData.exercises === undefined || importedData.workouts === undefined || importedData.routines === undefined) {
                             throw new Error("Неверный формат файла данных. Должен содержать exercises, workouts и routines.");
                         }
                         
@@ -262,6 +268,12 @@
             input.click();
         }
 
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+
+        // --- RENDERING & NAVIGATION ---
 
         function render() {
             const views = {
@@ -278,7 +290,7 @@
                 settings: renderSettings,
                 homeExDetail: renderHomeExerciseDetail, 
                 editExercise: renderEditExercise,
-                workoutDetails: renderWorkoutDetails
+                workoutDetails: renderWorkoutDetails // Not used, detail is used
             };
             document.getElementById('view').innerHTML = views[currentView]();
             window.scrollTo(0, 0); 
@@ -286,20 +298,33 @@
 
         function go(view) {
             currentView = view;
+            if (view === 'newWorkout') {
+                isEditingWorkout = false; 
+                selectedDate = new Date().toISOString().split('T')[0];
+                currentWorkout = []; // Clear current workout when starting new
+            }
             if (view === 'calendar' || view === 'home') {
                  currentViewDate = new Date();
-                 selectedDate = new Date().toISOString().split('T')[0]; 
             }
             if (currentView !== 'editExercise') {
                 selectedExIdEdit = null;
             }
             if (currentView !== 'editRoutine') {
                 selectedRoutineIdEdit = null;
+                delete window.currentRoutineEx;
+                delete window.currentRoutineId;
+                delete window.currentRoutineName;
             }
+            if (currentView !== 'editWorkout') {
+                // Clear temporary workout data if not editing
+                if (currentWorkout.__date) currentWorkout = [];
+            }
+
             render();
         }
         
         function changeMonth(offset) {
+            // Fix: set day to 1 before changing month to prevent skipping months (e.g., from 31st to February)
             currentViewDate.setDate(1); 
             currentViewDate.setMonth(currentViewDate.getMonth() + offset);
             render(); 
@@ -326,6 +351,7 @@
         }
 
         function editWorkout(date) {
+            isEditingWorkout = true; // Set flag
             selectedDate = date;
             go('editWorkout');
         }
@@ -335,7 +361,8 @@
             editWorkout(todayDateStr);
         }
 
-
+        // --- STATS UTILS ---
+        
         function getMonday(d) {
             d = new Date(d);
             const day = d.getDay();
@@ -359,9 +386,18 @@
                     streak++;
                     currentMonday.setDate(currentMonday.getDate() - 7);
                 } else {
-                    break;
+                    // Check if the current week is incomplete (i.e. this week has no workouts yet)
+                    if (streak === 0 && new Date(id) > getMonday(new Date())) {
+                       // Do nothing, still 0 streak
+                    } else if (streak > 0 && new Date(id).getTime() === new Date(getMonday(new Date())).getTime() && !uniqueWeekIds.has(getMonday(new Date()))) {
+                        // Current week is this week, but it has no workout yet. The streak is broken, but we don't break yet to check previous week.
+                        // Actually, the simple logic holds: if the ID is not in the set, the streak is broken.
+                        break; 
+                    } else {
+                        break;
+                    }
                 }
-                if (streak > 260) break; 
+                if (streak > 260) break; // Safety break
             }
             return streak;
         }
@@ -375,13 +411,13 @@
 
             for (let i = 0; i < 365; i++) {
                 const ds = curr.toISOString().split('T')[0];
-                const isToday = i === 0 && dates.has(ds);
-                const isYesterday = i > 0 && dates.has(ds);
-
-                if (isToday || isYesterday) {
+                
+                // If today (i=0) has a workout, or if a previous day (i>0) has a workout
+                if (dates.has(ds)) {
                     streak++;
                     curr.setDate(curr.getDate() - 1);
                 } else if (i === 0) {
+                    // If today has no workout, we check yesterday (i=1)
                     curr.setDate(curr.getDate() - 1);
                 } else {
                     break;
@@ -405,7 +441,8 @@
             let totalVolume = 0;
             workout.exercises.forEach(ex => {
                 const baseEx = exercises.find(e => e.id === ex.exerciseId);
-                const type = baseEx ? baseEx.type : 'reps';
+                // Fix: Check for baseEx existence
+                const type = baseEx ? baseEx.type : 'reps'; 
                 
                 ex.sets.forEach(set => {
                     totalVolume += calculateSetVolume(set, type);
@@ -433,7 +470,6 @@
             return maxVolume;
         }
 
-        // NEW: Function to filter workouts by the last N days
         function getWorkoutsInPeriod(days) {
             if (days === 'all') return workouts;
             const cutoffDate = new Date();
@@ -442,7 +478,6 @@
             return workouts.filter(w => new Date(w.date) >= cutoffDate);
         }
 
-        // NEW: Function to calculate overall stats for a set of workouts
         function getOverallStatsForPeriod(filteredWorkouts) {
             let totalVolume = 0;
             const uniqueExercises = new Set();
@@ -464,6 +499,8 @@
             };
         }
 
+
+        // --- VIEW RENDERERS ---
 
         function renderHome() {
             const dayStreak = getStreak();
@@ -513,7 +550,8 @@
                     </div>`;
                 today.exercises.forEach(ex => {
                     const e = exercises.find(e => e.id === ex.exerciseId);
-                    const t = e ? e.type : 'reps';
+                    // Fix: Check for e existence before accessing type
+                    const t = e ? e.type : 'reps'; 
                     const totalReps = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
                     let d = '';
                     if (t === 'weight') {
@@ -595,12 +633,13 @@
             const firstDayOfMonth = new Date(year, month, 1);
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             let startDayOfWeek = firstDayOfMonth.getDay(); 
+            // Fix: adjust Sunday (0) to 7 for correct offset calculation (Monday is 1)
             if (startDayOfWeek === 0) startDayOfWeek = 7; 
             const paddingDays = startDayOfWeek - 1; 
             const monthName = currentViewDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
             let h = `<div class="top-bar">
                         <button class="back-btn" onclick="go('home')">←</button>
-                        <h2>Календарь</h2>
+                        <h2>📅 Календарь</h2>
                         <div style="width: 36px;"></div>
                      </div>
                      <div class="card">
@@ -647,7 +686,7 @@
                      </div>
                      <div class="card header-card" style="background: #3b82f6;">
                         <h3 style="margin-bottom: 8px; font-size: 18px;">Объем тренировки:</h3>
-                        <p style="font-size: 32px; font-weight: bold;">${totalVolume} ед. объема</p>
+                        <p style="font-size: 32px; font-weight: bold;">${totalVolume.toLocaleString()} ед. объема</p>
                      </div>
                      <div class="card">
                         <h3 style="margin-bottom: 12px;">Упражнения</h3>`;
@@ -731,7 +770,6 @@
             });
         }
         
-        /* MODIFIED/NEW FUNCTION: renderStats (Overall Statistics) */
         function renderStats() {
             const periods = {
                 7: 'Неделя',
@@ -757,7 +795,7 @@
                 const periodLabel = periods[days];
                 const volumeUnit = 'ед. объема' 
 
-                h += `<div class="stat-item" onclick="go('stats')" style="cursor: default; background: #f0f4f8; padding: 12px; border-radius: 8px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #333;">
+                h += `<div class="stat-item" style="cursor: default; background: #f0f4f8; padding: 12px; border-radius: 8px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #333;">
                         <p style="font-size: 14px; font-weight: 600; color: #3b82f6; margin-bottom: 4px;">${periodLabel}</p>
                         <p style="font-size: 18px; font-weight: bold; margin-bottom: 4px;">${stats.workouts} 🏋️‍♂️</p>
                         <p style="font-size: 12px; color: #666;">${stats.sets} подх. / ${stats.exercises} упр.</p>
@@ -784,7 +822,8 @@
                             const e = w.exercises.find(e => e.exerciseId === ex.id);
                             if (e) {
                                 e.sets.forEach(s => {
-                                    totalVal += calculateSetVolume(s, ex.type);
+                                    // Fix: Use the correct base exercise type for volume calculation
+                                    totalVal += calculateSetVolume(s, ex.type); 
                                 });
                             }
                         });
@@ -809,13 +848,11 @@
             return h;
         }
 
-        // NEW: Helper to navigate to exercise stats
         function viewExStats(exId) {
             selExId = exId;
             go('exerciseStats');
         }
 
-        /* MODIFIED/COMPLETED FUNCTION: renderExerciseStats (Detailed Exercise Stats with all periods) */
         function renderExerciseStats() {
             if (!selExId) return '';
             const ex = exercises.find(e => e.id === selExId);
@@ -829,14 +866,15 @@
                 if (e) {
                     ts += e.sets.length;
                     e.sets.forEach(s => {
-                        tr += (s.reps || 0); 
+                         // Fix: Calculate total reps based on exercise type (volume metric)
+                         tr += calculateSetVolume(s, ex.type); 
                     });
                 }
             });
 
             let maxSetVolume = getMaxSetVolume(ex.id);
             let maxRepsOrWeight = 0; 
-            let maxReps = 0;
+            let maxReps = 0; // Only for reps count
 
             exWo.forEach(w => {
                 const e = w.exercises.find(e => e.exerciseId === ex.id);
@@ -845,14 +883,16 @@
                         const reps = s.reps || 0;
                         const weight = s.weight || 0;
                         if (ex.type === 'weight' && weight > maxRepsOrWeight) maxRepsOrWeight = weight;
+                        if (ex.type !== 'weight' && reps > maxRepsOrWeight) maxRepsOrWeight = reps; // Max reps/distance/time
                         if (reps > maxReps) maxReps = reps; 
                     });
                 }
             });
 
             let ul = '', us = '';
-            if (ex.type === 'distance') { ul = 'Километры'; us = 'км'; }
-            else if (ex.type === 'time') { ul = 'Минуты'; us = 'мин'; }
+            if (ex.type === 'distance') { ul = 'Дистанция'; us = 'км'; }
+            else if (ex.type === 'time') { ul = 'Время'; us = 'мин'; }
+            else if (ex.type === 'weight') { ul = 'Объем'; us = 'ед. объема'; }
             else { ul = 'Повторения'; us = 'повт'; }
             
             // --- HTML Structure (Compact Header) ---
@@ -864,7 +904,7 @@
                     <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr); gap: 8px;">
                         <div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Тренировок</p><p style="font-size: 18px; color: white;">${exWo.length}</p></div>
                         <div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Подходов</p><p style="font-size: 18px; color: white;">${ts}</p></div>
-                        <div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Всего ${ul}</p><p style="font-size: 18px; color: white;">${ex.type === 'distance' ? tr.toFixed(1) : Math.round(tr)} ${us}</p></div>
+                        <div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Всего ${ul}</p><p style="font-size: 18px; color: white;">${ex.type === 'distance' ? tr.toFixed(1) : Math.round(tr).toLocaleString()} ${us}</p></div>
                     </div>
                     <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.3);">
                         <p style="font-size: 12px; opacity: 0.8; margin-bottom: 2px;">Персональные рекорды (PR)</p>
@@ -872,13 +912,13 @@
                             <div style="flex: 1; text-align: center;">
                                 <p style="font-size: 11px; opacity: 0.8; margin-bottom: 2px;">Макс. ${ex.type === 'weight' ? 'вес' : ul.toLowerCase()}</p>
                                 <p style="font-size: 16px; font-weight: bold; line-height: 1.2;">
-                                    ${ex.type === 'weight' ? `${maxRepsOrWeight} кг` : `${Math.round(maxReps)} ${us}`}
+                                    ${ex.type === 'weight' ? `${maxRepsOrWeight} кг` : `${Math.round(maxRepsOrWeight)} ${us.replace('повт', 'пов.')}`}
                                 </p>
                             </div>
                             <div style="flex: 1; text-align: center;">
                                 <p style="font-size: 11px; opacity: 0.8; margin-bottom: 2px;">Макс. объем за сет</p>
                                 <p style="font-size: 16px; font-weight: bold; line-height: 1.2;">
-                                    ${Math.round(maxSetVolume)} ${ex.type === 'weight' ? 'кг' : us}
+                                    ${Math.round(maxSetVolume)} ${ex.type === 'weight' ? 'кг' : us.replace('повт', 'пов.')}
                                 </p>
                             </div>
                         </div>
@@ -890,27 +930,30 @@
             } else {
                 const today = new Date();
                 
-                function generateChartData(days, periodType) { 
+                // Fix: Generate chart data using Volume (tr) and aggregate by day/month
+                function generateChartData(days, periodType, exId, exType) { 
                     const dataPoints = [];
-                    
+                    const filtered = getWorkoutsInPeriod(days);
+
                     if (periodType === 'day') {
                         for (let i = days - 1; i >= 0; i--) {
                             const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
                             const ds = d.toISOString().split('T')[0];
                             
-                            // Find all sets for this exercise on this exact day
-                            let totalReps = 0;
+                            let totalVolume = 0;
                             
-                            workouts.filter(w => w.date === ds).forEach(wo => {
-                                const exEntry = wo.exercises.find(e => e.exerciseId === ex.id);
+                            filtered.filter(w => w.date === ds).forEach(wo => {
+                                const exEntry = wo.exercises.find(e => e.exerciseId === exId);
                                 if (exEntry) {
-                                    totalReps = exEntry.sets.reduce((sum, set) => sum + (set.reps || 0), 0);
+                                    exEntry.sets.forEach(set => {
+                                        totalVolume += calculateSetVolume(set, exType);
+                                    });
                                 }
                             });
                             
                             dataPoints.push({ 
                                 label: days === 7 ? d.toLocaleDateString('ru-RU', { weekday: 'short' }) : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'numeric' }), 
-                                reps: totalReps, 
+                                volume: exType === 'distance' ? totalVolume.toFixed(1) : Math.round(totalVolume), 
                             });
                         }
                     } else if (periodType === 'month') {
@@ -920,21 +963,23 @@
                             const month = d.getMonth();
                             const year = d.getFullYear();
                             
-                            let totalReps = 0;
+                            let totalVolume = 0;
                             
-                            workouts.forEach(w => {
+                            filtered.forEach(w => {
                                 const wDate = new Date(w.date);
                                 if (wDate.getMonth() === month && wDate.getFullYear() === year) {
-                                    const exEntry = w.exercises.find(e => e.exerciseId === ex.id);
+                                    const exEntry = w.exercises.find(e => e.exerciseId === exId);
                                     if (exEntry) {
-                                        totalReps += exEntry.sets.reduce((sum, set) => sum + (set.reps || 0), 0);
+                                        exEntry.sets.forEach(set => {
+                                            totalVolume += calculateSetVolume(set, exType);
+                                        });
                                     }
                                 }
                             });
                             
                             dataPoints.push({
                                 label: d.toLocaleDateString('ru-RU', { month: 'short', year: numMonths > 12 ? '2-digit' : undefined }),
-                                reps: totalReps,
+                                volume: exType === 'distance' ? totalVolume.toFixed(1) : Math.round(totalVolume),
                             });
                         }
                     }
@@ -944,14 +989,17 @@
                 const chartInitCalls = [];
 
                 function renderChartCard(id, days, label, color, type, periodType) {
-                    const data = generateChartData(days, periodType);
-                    const totalReps = data.reduce((s, d) => s + d.reps, 0);
-                    const totalSets = exWo.filter(w => getWorkoutsInPeriod(days).includes(w)).reduce((s, w) => s + (w.exercises.find(e => e.exerciseId === ex.id)?.sets.length || 0), 0);
+                    const data = generateChartData(days, periodType, ex.id, ex.type);
+                    const totalVolume = data.reduce((s, d) => s + parseFloat(d.volume), 0);
                     
-                    let chartData = data.map(d => d.reps);
+                    // Filter workouts *in the period* to count sets
+                    const totalSets = getWorkoutsInPeriod(days).reduce((s, w) => s + (w.exercises.find(e => e.exerciseId === ex.id)?.sets.length || 0), 0);
+                    
+                    let chartData = data.map(d => parseFloat(d.volume));
                     let chartLabels = data.map(d => d.label);
 
-                    let displayReps = ex.type === 'distance' ? totalReps.toFixed(1) : Math.round(totalReps);
+                    let displayVolume = ex.type === 'distance' ? totalVolume.toFixed(1) : Math.round(totalVolume).toLocaleString();
+                    let unit = ex.type === 'weight' ? 'кг' : ex.type === 'distance' ? 'км' : ex.type === 'time' ? 'мин' : 'повт';
                     
                     let cardHTML = `<div class="card" id="card-${id}">
                         <h3 style="margin-bottom: 12px;">${label}</h3>
@@ -960,7 +1008,7 @@
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: center;"> 
                                 <div>
                                     <p style="font-size: 12px; color: #666;">Всего ${ul.toLowerCase()}</p> 
-                                    <p style="font-size: 18px; font-weight: bold; color: ${color};">${displayReps} ${us}</p>
+                                    <p style="font-size: 18px; font-weight: bold; color: ${color};">${displayVolume} ${unit}</p>
                                 </div> 
                                 <div>
                                     <p style="font-size: 12px; color: #666;">Всего подходов</p> 
@@ -1028,7 +1076,7 @@
         function renderExercises() {
             let h = `<div class="top-bar">
                         <button class="back-btn" onclick="go('home')">←</button>
-                        <h2>Упражнения</h2>
+                        <h2>🏋️ Упражнения</h2>
                         <button onclick="editEx(null)" class="save-btn" style="background: #3b82f6;">➕</button>
                      </div>
                      ${renderNewExForm()}
@@ -1058,10 +1106,6 @@
             return h;
         }
 
-        function generateId() {
-            return Date.now().toString(36) + Math.random().toString(36).substr(2);
-        }
-
         function addEx() {
             const name = document.getElementById('exName').value.trim();
             const type = document.getElementById('exType').value;
@@ -1077,7 +1121,8 @@
                 type: type
             });
             save();
-            document.getElementById('newEx').value = ''; 
+            // Clear form after adding
+            document.getElementById('exName').value = ''; 
             render(); 
         }
 
@@ -1095,6 +1140,7 @@
 
             const index = exercises.findIndex(e => e.id === selectedExIdEdit);
             if (index > -1) {
+                const oldType = exercises[index].type;
                 exercises[index].name = name;
                 exercises[index].type = type;
 
@@ -1103,6 +1149,7 @@
                     wo.exercises.forEach(ex => {
                         if (ex.exerciseId === selectedExIdEdit) {
                             ex.exerciseName = name; 
+                            // Fix: If type changed, sets should be reset/validated, but here we only update name
                         }
                     });
                 });
@@ -1148,33 +1195,41 @@
                      </div>
                      <div class="card">
                         <label for="date">Дата:</label>
-                        <input type="date" id="date" value="${selectedDate}" style="margin-top: 8px; margin-bottom: 12px;">
+                        <input type="date" id="date" value="${selectedDate}" onchange="selectedDate = this.value" style="margin-top: 8px; margin-bottom: 12px;">
                         <button onclick="showRoutines()" class="btn btn-purple" style="width: 100%; padding: 12px; margin-bottom: 12px; background: #8b5cf6;">Использовать шаблон</button>
                         <button onclick="showExSelection()" class="btn btn-blue" style="width: 100%; padding: 12px;">Добавить упражнение</button>
                      </div>
                      <div class="card">
                         <h3>Упражнения в тренировке (${currentWorkout.length})</h3>`;
             
-            if (currentWorkout.length === 0) {
+            // ... (rest of the workout rendering logic is shared/correct)
+            h += renderWorkoutExercises(currentWorkout);
+            h += `</div>`;
+            return h;
+        }
+
+        function renderWorkoutExercises(exList) {
+            let h = '';
+            if (exList.length === 0) {
                 h += `<div class="empty-state">Начните с добавления упражнений.</div>`;
             } else {
-                currentWorkout.forEach((ex, index) => {
+                exList.forEach((ex, index) => {
                     const eBase = exercises.find(e => e.id === ex.exerciseId);
                     const t = eBase ? eBase.type : 'reps';
                     const setsHtml = ex.sets.map((set, setIndex) => {
                         let inputs;
                         if (t === 'weight') inputs = `
-                            <input type="number" placeholder="Вес (кг)" value="${set.weight || ''}" onchange="updateSet(${index}, ${setIndex}, 'weight', this.value)" style="flex: 1;">
-                            <input type="number" placeholder="Повт." value="${set.reps || ''}" onchange="updateSet(${index}, ${setIndex}, 'reps', this.value)" style="flex: 1;">
+                            <input type="number" placeholder="Вес (кг)" value="${set.weight || ''}" onchange="updateSet(${index}, ${setIndex}, 'weight', this.value)" style="flex: 1; min-width: 0;">
+                            <input type="number" placeholder="Повт." value="${set.reps || ''}" onchange="updateSet(${index}, ${setIndex}, 'reps', this.value)" style="flex: 1; min-width: 0;">
                         `;
                         else if (t === 'distance') inputs = `
-                            <input type="number" placeholder="Дистанция (км)" value="${set.reps || ''}" onchange="updateSet(${index}, ${setIndex}, 'reps', this.value)" style="flex: 1;">
+                            <input type="number" step="0.1" placeholder="Дистанция (км)" value="${set.reps || ''}" onchange="updateSet(${index}, ${setIndex}, 'reps', this.value)" style="flex: 1; min-width: 0;">
                         `;
                         else if (t === 'time') inputs = `
-                            <input type="number" placeholder="Время (мин)" value="${set.reps || ''}" onchange="updateSet(${index}, ${setIndex}, 'reps', this.value)" style="flex: 1;">
+                            <input type="number" placeholder="Время (мин)" value="${set.reps || ''}" onchange="updateSet(${index}, ${setIndex}, 'reps', this.value)" style="flex: 1; min-width: 0;">
                         `;
                         else inputs = `
-                            <input type="number" placeholder="Повторения" value="${set.reps || ''}" onchange="updateSet(${index}, ${setIndex}, 'reps', this.value)" style="flex: 1;">
+                            <input type="number" placeholder="Повторения" value="${set.reps || ''}" onchange="updateSet(${index}, ${setIndex}, 'reps', this.value)" style="flex: 1; min-width: 0;">
                         `;
 
                         return `<div class="set-row">
@@ -1194,8 +1249,6 @@
                     </div>`;
                 });
             }
-
-            h += `</div>`;
             return h;
         }
 
@@ -1204,12 +1257,13 @@
             const wo = workouts.find(w => w.date === selectedDate);
             if (!wo) return go('calendar'); 
             
-            // If currentWorkout is empty, load it from the existing workout for editing
-            if (currentWorkout.length === 0 || currentWorkout.__date !== selectedDate) {
+            // If currentWorkout is empty OR we switched from another date, load from the existing workout for editing
+            if (currentWorkout.length === 0 || currentWorkout.__date !== selectedDate || !isEditingWorkout) {
+                // Fix: Ensure we use a deep clone of the original workout data
                 currentWorkout = JSON.parse(JSON.stringify(wo.exercises));
                 currentWorkout.__date = selectedDate; 
+                isEditingWorkout = true;
             }
-
 
             let h = `<div class="top-bar">
                         <button class="back-btn" onclick="go('detail')">←</button>
@@ -1224,55 +1278,22 @@
                      <div class="card">
                         <h3>Упражнения в тренировке (${currentWorkout.length})</h3>`;
             
+            h += renderWorkoutExercises(currentWorkout);
+
             if (currentWorkout.length === 0) {
-                h += `<div class="empty-state">Удалите тренировку, если она пуста.</div>
-                      <button onclick="deleteWorkout('${selectedDate}')" class="delete-btn" style="width: 100%; margin-top: 16px; font-size: 16px; background: #ef4444; color: white; padding: 12px; border-radius: 8px;">🗑️ Удалить тренировку</button>`;
-            } else {
-                currentWorkout.forEach((ex, index) => {
-                    const eBase = exercises.find(e => e.id === ex.exerciseId);
-                    const t = eBase ? eBase.type : 'reps';
-                    const setsHtml = ex.sets.map((set, setIndex) => {
-                        let inputs;
-                        if (t === 'weight') inputs = `
-                            <input type="number" placeholder="Вес (кг)" value="${set.weight || ''}" onchange="updateSet(${index}, ${setIndex}, 'weight', this.value)" style="flex: 1;">
-                            <input type="number" placeholder="Повт." value="${set.reps || ''}" onchange="updateSet(${index}, ${setIndex}, 'reps', this.value)" style="flex: 1;">
-                        `;
-                        else if (t === 'distance') inputs = `
-                            <input type="number" placeholder="Дистанция (км)" value="${set.reps || ''}" onchange="updateSet(${index}, ${setIndex}, 'reps', this.value)" style="flex: 1;">
-                        `;
-                        else if (t === 'time') inputs = `
-                            <input type="number" placeholder="Время (мин)" value="${set.reps || ''}" onchange="updateSet(${index}, ${setIndex}, 'reps', this.value)" style="flex: 1;">
-                        `;
-                        else inputs = `
-                            <input type="number" placeholder="Повторения" value="${set.reps || ''}" onchange="updateSet(${index}, ${setIndex}, 'reps', this.value)" style="flex: 1;">
-                        `;
-
-                        return `<div class="set-row">
-                            <div class="set-label">Подход ${setIndex + 1}</div>
-                            ${inputs}
-                            <button onclick="deleteSet(${index}, ${setIndex})" class="delete-btn">➖</button>
-                        </div>`;
-                    }).join('');
-
-                    h += `<div class="card" style="margin-bottom: 12px; padding: 12px; border: 1px solid #ddd;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <div style="font-weight: 600; font-size: 18px;">${ex.exerciseName}</div>
-                            <button onclick="deleteExFromWorkout(${index})" class="delete-btn">🗑️</button>
-                        </div>
-                        ${setsHtml}
-                        <button onclick="addSet(${index})" class="save-btn" style="width: 100%; background: #3b82f6; padding: 8px 16px; margin-top: 8px;">➕ Добавить подход</button>
-                    </div>`;
-                });
-                h += `<button onclick="deleteWorkout('${selectedDate}')" class="delete-btn" style="width: 100%; margin-top: 16px; font-size: 16px; background: #ef4444; color: white; padding: 12px; border-radius: 8px;">🗑️ Удалить тренировку</button>`;
+                 h += `<div class="empty-state">Удалите тренировку, если она пуста.</div>`;
             }
-
+            
+            h += `<button onclick="deleteWorkout('${selectedDate}')" class="delete-btn" style="width: 100%; margin-top: 16px; font-size: 16px; background: #ef4444; color: white; padding: 12px; border-radius: 8px;">🗑️ Удалить тренировку</button>`;
             h += `</div>`;
             return h;
         }
 
+
         function updateWorkoutDate(newDate) {
              const wo = workouts.find(w => w.date === newDate);
-             if (wo && newDate !== selectedDate) {
+             // Fix: Check against the original date (selectedDate)
+             if (wo && newDate !== selectedDate) { 
                  alert('Тренировка на эту дату уже существует. Выберите другую дату.');
                  document.getElementById('date').value = selectedDate; 
                  return;
@@ -1293,8 +1314,8 @@
             go('calendar'); 
         }
 
-        function showExSelection(isEditing = false) {
-            selExId = null; 
+        function showExSelection() {
+            // Filter out exercises already in the current workout
             const availableEx = exercises.filter(e => !currentWorkout.some(cw => cw.exerciseId === e.id));
 
             if (availableEx.length === 0) {
@@ -1304,7 +1325,7 @@
 
             let options = availableEx.map(ex => `<option value="${ex.id}">${ex.name}</option>`).join('');
             
-            const exSelector = `<div class="card" id="ex-selector">
+            const exSelector = `<div class="card" id="ex-selector" style="position: sticky; bottom: 0; z-index: 10; border-radius: 12px 12px 0 0; margin: 0 -16px; padding: 16px; box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.3);">
                 <h3 style="margin-bottom: 12px;">Выберите упражнение</h3>
                 <select id="selectedEx" style="margin-bottom: 16px;">${options}</select>
                 <button onclick="addExToWorkout()" class="btn btn-blue" style="width: 100%; padding: 12px;">Добавить</button>
@@ -1325,6 +1346,12 @@
             const ex = exercises.find(e => e.id === exId);
             if (!ex) return;
 
+            // Check if already exists (safety check, should be filtered)
+            if (currentWorkout.some(cw => cw.exerciseId === ex.id)) {
+                 alert('Это упражнение уже добавлено.');
+                 return;
+            }
+
             currentWorkout.push({
                 exerciseId: ex.id,
                 exerciseName: ex.name,
@@ -1337,17 +1364,26 @@
 
         function updateSet(exIndex, setIndex, field, value) {
             const val = parseFloat(value);
+            // Fix: Check if value is a valid number, otherwise set to 0 or null
+            const cleanVal = isNaN(val) ? null : val; 
+            
             if (field === 'weight') {
-                currentWorkout[exIndex].sets[setIndex].weight = val;
+                currentWorkout[exIndex].sets[setIndex].weight = cleanVal;
             } else if (field === 'reps') {
-                currentWorkout[exIndex].sets[setIndex].reps = val;
+                currentWorkout[exIndex].sets[setIndex].reps = cleanVal;
             }
         }
 
         function addSet(exIndex) {
             const sets = currentWorkout[exIndex].sets;
             const newSetNumber = sets.length + 1;
-            sets.push({ setNumber: newSetNumber, weight: null, reps: null });
+            // Retain last set's weight/reps as default for convenience
+            const lastSet = sets.length > 0 ? sets[sets.length - 1] : {};
+            sets.push({ 
+                setNumber: newSetNumber, 
+                weight: lastSet.weight || null, 
+                reps: lastSet.reps || null 
+            });
             render();
         }
 
@@ -1374,18 +1410,24 @@
             }
             
             let isValid = true;
+            let filteredWorkout = [];
+
+            // Clean up empty sets
             currentWorkout.forEach(ex => {
-                ex.sets = ex.sets.filter(s => (s.weight || s.reps)); 
-                if (ex.sets.length === 0) {
-                    isValid = false; 
+                const cleanedSets = ex.sets.filter(s => (s.weight > 0 || s.reps > 0 || s.weight !== null || s.reps !== null)); 
+                
+                if (cleanedSets.length > 0) {
+                    ex.sets = cleanedSets.map((s, i) => ({...s, setNumber: i + 1}));
+                    filteredWorkout.push(ex);
                 }
             });
             
-            if (!isValid) {
-                 alert('Некоторые упражнения не содержат подходов с данными. Очистите поля или удалите упражнения без данных.');
+            if (filteredWorkout.length === 0) {
+                 alert('Все упражнения в тренировке не содержат данных о подходах. Добавьте данные или удалите пустые упражнения.');
                  return false;
             }
             
+            currentWorkout = filteredWorkout; // Update currentWorkout to the cleaned version
             return true;
         }
 
@@ -1404,7 +1446,9 @@
             };
             
             workouts.push(newWorkout);
+            workouts.sort((a, b) => new Date(b.date) - new Date(a.date)); // Resort
             currentWorkout = [];
+            isEditingWorkout = false;
             save();
             alert('✅ Тренировка сохранена!');
             go('home'); 
@@ -1416,11 +1460,17 @@
             if (!validateWorkout()) return;
 
             const woIndex = workouts.findIndex(w => w.date === selectedDate);
-            const existingWoAtNewDate = workouts.find(w => w.date === newDate && w.date !== selectedDate);
+            // Check if another workout exists at the new date, but only if the date actually changed
+            const existingWoAtNewDate = workouts.find(w => w.date === newDate && w.date !== selectedDate); 
 
             if (existingWoAtNewDate) {
                 alert('Тренировка на эту дату уже существует. Измените дату или удалите существующую запись.');
                 return;
+            }
+            
+            if (currentWorkout.length === 0) {
+                 alert('Тренировка пуста. Для сохранения удалите ее кнопкой "Удалить тренировку"');
+                 return;
             }
 
             if (woIndex !== -1) {
@@ -1429,6 +1479,8 @@
                 
                 selectedDate = newDate; // Update selected date after save
                 currentWorkout = []; // Clear temporary data
+                isEditingWorkout = false;
+                workouts.sort((a, b) => new Date(b.date) - new Date(a.date)); // Resort
                 save();
                 alert('✅ Тренировка обновлена!');
                 go('detail'); 
@@ -1442,7 +1494,7 @@
         function renderRoutines() {
             let h = `<div class="top-bar">
                         <button class="back-btn" onclick="go('home')">←</button>
-                        <h2>Шаблоны</h2>
+                        <h2>📋 Шаблоны</h2>
                         <button onclick="editRoutine(null)" class="save-btn" style="background: #3b82f6;">➕</button>
                      </div>
                      <div class="card">
@@ -1471,10 +1523,15 @@
         function renderEditRoutine() {
             const isNew = selectedRoutineIdEdit === null;
             let routine = isNew ? { id: generateId(), name: '', exercises: [] } : routines.find(r => r.id === selectedRoutineIdEdit);
-            if (!routine && !isNew) return go('routines'); 
+            
+            if (!routine && !isNew) {
+                // Fix: Handle case where routine might be missing (e.g., deleted during editing)
+                alert('Шаблон не найден. Возврат к списку.');
+                return go('routines'); 
+            } 
 
             // Temporary variable to hold routine exercises for editing
-            if (!window.currentRoutineEx || window.currentRoutineId !== routine.id) {
+            if (window.currentRoutineId !== routine.id) {
                 window.currentRoutineEx = JSON.parse(JSON.stringify(routine.exercises || []));
                 window.currentRoutineId = routine.id;
                 window.currentRoutineName = routine.name;
@@ -1519,7 +1576,7 @@
 
             let options = availableEx.map(ex => `<option value="${ex.id}">${ex.name}</option>`).join('');
             
-            const exSelector = `<div class="card" id="ex-selector-routine">
+            const exSelector = `<div class="card" id="ex-selector-routine" style="position: sticky; bottom: 0; z-index: 10; border-radius: 12px 12px 0 0; margin: 0 -16px; padding: 16px; box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.3);">
                 <h3 style="margin-bottom: 12px;">Выберите упражнение</h3>
                 <select id="selectedExRoutine" style="margin-bottom: 16px;">${options}</select>
                 <button onclick="addExToRoutine()" class="btn btn-blue" style="width: 100%; padding: 12px;">Добавить</button>
@@ -1540,9 +1597,16 @@
             const ex = exercises.find(e => e.id === exId);
             if (!ex) return;
 
+            // Check if already exists (safety check, should be filtered)
+            if (window.currentRoutineEx.some(cw => cw.exerciseId === ex.id)) {
+                 alert('Это упражнение уже добавлено.');
+                 return;
+            }
+
             window.currentRoutineEx.push({
                 exerciseId: ex.id,
                 exerciseName: ex.name,
+                // Fix: Only store ID/Name in routine exercises, sets are placeholders on load
             });
 
             removeExSelectorRoutine();
@@ -1565,13 +1629,14 @@
                 return;
             }
 
+            // The routine exercises stored only ID and Name
             const newRoutine = {
                 id: window.currentRoutineId,
                 name: name,
                 exercises: window.currentRoutineEx.map(ex => ({ 
                     exerciseId: ex.exerciseId, 
                     exerciseName: ex.exerciseName,
-                    sets: [{ setNumber: 1, weight: null, reps: null }] // Include placeholder sets
+                    sets: [{ setNumber: 1, weight: null, reps: null }] // Include placeholder sets for consistency with workout structure
                 }))
             };
 
@@ -1584,6 +1649,7 @@
                 routines.push(newRoutine);
             }
 
+            // Cleanup temporary state
             delete window.currentRoutineEx;
             delete window.currentRoutineId;
             delete window.currentRoutineName;
@@ -1609,7 +1675,7 @@
 
             let options = routines.map(rt => `<option value="${rt.id}">${rt.name} (${rt.exercises.length} упр.)</option>`).join('');
             
-            const rtSelector = `<div class="card" id="rt-selector">
+            const rtSelector = `<div class="card" id="rt-selector" style="position: sticky; bottom: 0; z-index: 10; border-radius: 12px 12px 0 0; margin: 0 -16px; padding: 16px; box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.3);">
                 <h3 style="margin-bottom: 12px;">Выберите шаблон для загрузки</h3>
                 <select id="selectedRoutine" style="margin-bottom: 16px;">${options}</select>
                 <button onclick="applyRoutine()" class="btn btn-blue" style="width: 100%; padding: 12px;">Загрузить</button>
@@ -1632,9 +1698,10 @@
             if (!routine) return;
             
             // Overwrite current workout with the exercises from the routine
+            // Use a deep copy of the exercises from the routine, including their placeholder sets
             currentWorkout = JSON.parse(JSON.stringify(routine.exercises));
             
-            // Add setNumber for display
+            // Add setNumber for display (already in the copied structure, but re-ensure)
             currentWorkout.forEach(ex => {
                  ex.sets.forEach((set, i) => set.setNumber = i + 1);
             });
@@ -1666,7 +1733,7 @@
                      </div>
                      <div class="card">
                         <h3>О приложении</h3>
-                        <p style="color: #666; font-size: 14px;">💪 Трекер Тренировок **v2.0** (Полная Статистика)<br>Все данные хранятся локально</p></div>`;
+                        <p style="color: #666; font-size: 14px;">💪 Трекер Тренировок **v2.1** (Fix & Optimizations)<br>Все данные хранятся локально</p></div>`;
             return h;
         }
         
@@ -1695,7 +1762,7 @@
                 routines = [];
                 save();
                 alert('✅ Удалено');
-                render();
+                go('home'); // Rerender from home
             }
         }
 
@@ -1706,9 +1773,10 @@
                     workouts = [];
                     routines = [];
                     currentWorkout = [];
+                    isEditingWorkout = false;
                     localStorage.clear();
                     alert('🔥 Все данные сброшены. Перезагрузите страницу.');
-                    render();
+                    go('home'); // Rerender from home
                 }
             }
         }

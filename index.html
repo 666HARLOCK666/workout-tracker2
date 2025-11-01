@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Трекер Тренировок</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        /* Стили CSS */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
+            background: #f5f5f5;
+        }
+        /* ВОЗВРАЩЕНО к 80px */
+        .container { max-width: 600px; margin: 0 auto; padding: 16px; padding-bottom: 80px; } 
+        .header-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 24px; color: white; margin-bottom: 16px; }
+        .stat-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr 1fr; 
+            gap: 16px; 
+            margin-top: 16px; 
+        }
+        .stat-item { 
+            background: rgba(255, 255, 255, 0.2); 
+            padding: 12px; 
+            border-radius: 8px; 
+            text-align: center; 
+        }
+        .stat-value { font-size: 1.5em; font-weight: bold; }
+        .stat-label { font-size: 0.8em; opacity: 0.8; margin-top: 4px; }
+        
+        .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); }
+        .title { font-size: 1.2em; font-weight: bold; margin-bottom: 12px; }
+        
+        /* Кнопки */
+        .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+        .btn {
+            flex-grow: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-weight: bold;
+        }
+        .btn-primary { background-color: #764ba2; color: white; }
+        .btn-secondary { background-color: #e0e0e0; color: #333; }
+        .btn-danger { background-color: #ff4d4d; color: white; }
+        .btn-add { background-color: #28a745; color: white; }
+        
+        /* Список */
+        .list-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 10px 0; 
+            border-bottom: 1px solid #eee; 
+        }
+        .list-item:last-child { border-bottom: none; }
+        .item-details { flex-grow: 1; }
+        .item-details small { color: #666; display: block; }
+        .item-actions { display: flex; gap: 8px; }
+
+        /* Навигация */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-width: 600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-around;
+            background: white;
+            border-top: 1px solid #ddd;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.05);
+            padding: 5px 0;
+            z-index: 1000;
+        }
+        .nav-item {
+            text-align: center;
+            padding: 8px;
+            cursor: pointer;
+            color: #666;
+            transition: color 0.2s;
+            font-size: 0.9em;
+            flex-grow: 1;
+        }
+        .nav-item.active {
+            color: #764ba2;
+            font-weight: bold;
+        }
+        .nav-icon { font-size: 1.2em; margin-bottom: 3px; }
+
+        /* Поля ввода */
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 1em;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 1em;
+            resize: vertical;
+        }
+
+        /* Тренировка */
+        .set-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: #f0f0f0;
+            border-radius: 6px;
+        }
+        .set-row input { margin-bottom: 0; }
+        .set-row .set-number { font-weight: bold; width: 30px; text-align: center; }
+        .set-row .kg-input { flex: 2; }
+        .set-row .reps-input { flex: 2; }
+        .set-row .delete-set-btn { flex: 0 0 30px; background: none; color: #ff4d4d; font-size: 1.2em; padding: 0; border: none; cursor: pointer; }
+        
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active" id="nav-home" onclick="go('home')">
+            <div class="nav-icon">🏠</div>
+            <div>Главная</div>
+        </div>
+        <div class="nav-item" id="nav-new" onclick="go('new_workout')">
+            <div class="nav-icon">🏋️</div>
+            <div>Новая</div>
+        </div>
+        <div class="nav-item" id="nav-routines" onclick="go('routines')">
+            <div class="nav-icon">📝</div>
+            <div>Шаблоны</div>
+        </div>
+        <div class="nav-item" id="nav-stats" onclick="go('stats')">
+            <div class="nav-icon">📈</div>
+            <div>Статистика</div>
+        </div>
+        <div class="nav-item" id="nav-settings" onclick="go('settings')">
+            <div class="nav-icon">⚙️</div>
+            <div>Настройки</div>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация Telegram Web App
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        
+        const app = document.getElementById('app');
+        
+        // Глобальные переменные для данных
+        let workouts = JSON.parse(localStorage.getItem('workouts')) || [];
+        let exercises = JSON.parse(localStorage.getItem('exercises')) || [];
+        let routines = JSON.parse(localStorage.getItem('routines')) || [];
+        let currentWorkout = JSON.parse(localStorage.getItem('currentWorkout')) || [];
+        let isEditingWorkout = JSON.parse(localStorage.getItem('isEditingWorkout')) || false;
+        let currentPage = 'home';
+        
+        // СТЕК КОНТЕКСТА ДЛЯ ОБРАТНОЙ НАВИГАЦИИ (FIX V2.3)
+        window.contextStack = [];
+
+        // --- Вспомогательные функции ---
+
+        function save() {
+            localStorage.setItem('workouts', JSON.stringify(workouts));
+            localStorage.setItem('exercises', JSON.stringify(exercises));
+            localStorage.setItem('routines', JSON.stringify(routines));
+            localStorage.setItem('currentWorkout', JSON.stringify(currentWorkout));
+            localStorage.setItem('isEditingWorkout', JSON.stringify(isEditingWorkout));
+        }
+
+        function getExerciseName(id) {
+            const ex = exercises.find(e => e.id === id);
+            return ex ? ex.name : 'Неизвестное упражнение';
+        }
+
+        function getWorkoutDuration(startTime, endTime) {
+            if (!startTime || !endTime) return '00:00:00';
+            const diff = new Date(endTime).getTime() - new Date(startTime).getTime();
+            const totalSeconds = Math.floor(diff / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            const pad = (num) => String(num).padStart(2, '0');
+
+            return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ru-RU', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+        }
+        
+        // --- Роутинг и рендеринг ---
+
+        function go(page, data = null) {
+            // Сохраняем текущий контекст перед переходом, если это не навигация
+            if (currentPage && currentPage !== 'select_exercise' && currentPage !== 'add_exercise') {
+                contextStack.push({ page: currentPage, data: data });
+            }
+
+            currentPage = page;
+            tg.HapticFeedback.impactOccurred('light');
+            render(data);
+            
+            // Обновление навигации
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            const navItem = document.getElementById(`nav-${page.split('_')[0]}`);
+            if (navItem) navItem.classList.add('active');
+        }
+
+        function goBack() {
+            tg.HapticFeedback.impactOccurred('light');
+            if (contextStack.length > 0) {
+                const prevContext = contextStack.pop();
+                currentPage = prevContext.page;
+                render(prevContext.data);
+                
+                // Обновление навигации
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                const navItem = document.getElementById(`nav-${currentPage.split('_')[0]}`);
+                if (navItem) navItem.classList.add('active');
+            } else {
+                // Если стек пуст, возвращаемся на главную
+                go('home');
+            }
+        }
+
+
+        function render(data = null) {
+            app.innerHTML = '';
+            tg.MainButton.hide();
+            tg.BackButton.hide();
+            tg.setHeaderColor('secondary_bg_color');
+
+            // Настройка кнопки "Назад"
+            if (currentPage !== 'home' && currentPage !== 'start_workout') {
+                 tg.BackButton.show().onClick(goBack);
+            }
+
+
+            switch (currentPage) {
+                case 'home':
+                    renderHome();
+                    break;
+                case 'new_workout':
+                    renderNewWorkout();
+                    break;
+                case 'start_workout':
+                    renderStartWorkout(data);
+                    break;
+                case 'edit_workout':
+                    renderEditWorkout(data);
+                    break;
+                case 'routines':
+                    renderRoutines();
+                    break;
+                case 'add_routine':
+                    renderAddRoutine(data);
+                    break;
+                case 'view_workout':
+                    renderViewWorkout(data);
+                    break;
+                case 'settings':
+                    renderSettings();
+                    break;
+                case 'exercises':
+                    renderExercises();
+                    break;
+                case 'add_exercise':
+                    renderAddExercise(data);
+                    break;
+                case 'stats':
+                    renderStats();
+                    break;
+                case 'select_exercise':
+                    renderSelectExercise(data); // data = { from: 'workout'/'routine', routineId: null/id }
+                    break;
+            }
+        }
+        
+        // --- Render Functions ---
+
+        function renderHome() {
+            let h = `
+                <div class="header-card">
+                    <h2>Привет, ${tg.initDataUnsafe.first_name || 'Спортсмен'}!</h2>
+                    ${getStatGrid()}
+                    <div class="btn-group" style="margin-top: 24px;">
+                        <button class="btn btn-add" onclick="go('new_workout')">Начать тренировку</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="title">Последние тренировки</div>
+                    ${workouts.length === 0 ? '<p>Пока нет завершенных тренировок.</p>' : ''}
+                    ${workouts.slice(0, 5).map(w => `
+                        <div class="list-item" onclick="go('view_workout', ${w.id})">
+                            <div class="item-details">
+                                ${formatDate(w.date)}
+                                <small>${w.name || 'Тренировка'} (${getWorkoutDuration(w.startTime, w.endTime)})</small>
+                            </div>
+                            <div class="item-actions">
+                                <span style="color: #764ba2;">→</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                    ${workouts.length > 5 ? `<div class="btn-group"><button class="btn btn-secondary" onclick="go('history')">Показать все</button></div>` : ''}
+                </div>
+            `;
+            app.innerHTML = h;
+            tg.expand();
+            tg.BackButton.hide(); // На главной кнопка назад не нужна
+            contextStack = []; // Очищаем стек на главной
+        }
+
+        function getStatGrid() {
+            const totalWorkouts = workouts.length;
+            const totalSets = workouts.reduce((sum, w) => sum + w.exercises.reduce((s, e) => s + e.sets.length, 0), 0);
+            const totalVolume = workouts.reduce((sum, w) => sum + w.exercises.reduce((s, e) => s + e.sets.reduce((v, set) => v + (set.kg * set.reps), 0), 0), 0);
+            
+            return `
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">${totalWorkouts}</div>
+                        <div class="stat-label">Тренировок</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${totalSets}</div>
+                        <div class="stat-label">Подходов</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${(totalVolume / 1000).toFixed(1)}K</div>
+                        <div class="stat-label">Объем (кг)</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStats() {
+            let h = `
+                <div class="header-card">
+                    <h2>Статистика</h2>
+                    ${getStatGrid()}
+                </div>
+                
+                <div class="card">
+                    <div class="title">Динамика объема</div>
+                    <canvas id="volumeChart"></canvas>
+                </div>
+                
+                <div class="card">
+                    <div class="title">Объем по упражнениям (Топ 5)</div>
+                    <canvas id="exerciseVolumeChart"></canvas>
+                </div>
+
+                <div class="card">
+                    <div class="title">Самые частые упражнения</div>
+                    ${getMostFrequentExercises().map(item => `
+                        <div class="list-item">
+                            <div class="item-details">
+                                ${getExerciseName(item.id)}
+                                <small>Использовано: ${item.count} раз</small>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div class="card" style="text-align: center;">
+                    <p style="color: #666; font-size: 14px;">💪 Трекер Тренировок **v2.4** (Дизайн v1.9 + FIX Навигации)</p>
+                </div>
+            `;
+            app.innerHTML = h;
+            tg.expand();
+            
+            // Проверка на наличие данных перед рендерингом графиков
+            if (workouts.length > 0) {
+                 renderVolumeChart();
+                 renderExerciseVolumeChart();
+            } else {
+                 document.getElementById('volumeChart').closest('.card').innerHTML += '<p style="text-align: center;">Нет данных для построения графика.</p>';
+                 document.getElementById('exerciseVolumeChart').closest('.card').innerHTML += '<p style="text-align: center;">Нет данных для построения графика.</p>';
+            }
+        }
+
+        function getVolumeData() {
+            const data = {};
+            workouts.forEach(w => {
+                const date = formatDate(w.date); // Группировка по дате
+                const volume = w.exercises.reduce((sum, e) => sum + e.sets.reduce((v, set) => v + (set.kg * set.reps), 0), 0);
+                if (data[date]) {
+                    data[date] += volume;
+                } else {
+                    data[date] = volume;
+                }
+            });
+            return data;
+        }
+        
+        function renderVolumeChart() {
+            const data = getVolumeData();
+            const labels = Object.keys(data);
+            const volumes = labels.map(label => data[label]);
+
+            // Сортировка по дате
+            const sortedData = labels.map((label, index) => ({ date: new Date(workouts.find(w => formatDate(w.date) === label)?.date || label), label, volume: volumes[index] }))
+                                     .sort((a, b) => a.date - b.date);
+
+            const sortedLabels = sortedData.map(d => d.label);
+            const sortedVolumes = sortedData.map(d => d.volume);
+
+
+            const ctx = document.getElementById('volumeChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedLabels,
+                    datasets: [{
+                        label: 'Общий объем (кг)',
+                        data: sortedVolumes,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        function getExerciseVolumeData() {
+            const data = {};
+            workouts.forEach(w => {
+                w.exercises.forEach(e => {
+                    const volume = e.sets.reduce((v, set) => v + (set.kg * set.reps), 0);
+                    const name = getExerciseName(e.id);
+                    if (data[name]) {
+                        data[name] += volume;
+                    } else {
+                        data[name] = volume;
+                    }
+                });
+            });
+            
+            const sorted = Object.entries(data)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 5);
+                
+            return {
+                labels: sorted.map(item => item[0]),
+                volumes: sorted.map(item => item[1])
+            };
+        }
+        
+        function renderExerciseVolumeChart() {
+            const { labels, volumes } = getExerciseVolumeData();
+
+            const ctx = document.getElementById('exerciseVolumeChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Объем (кг)',
+                        data: volumes,
+                        backgroundColor: '#764ba2',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        },
+                        x: {
+                            ticks: {
+                                autoSkip: false,
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function getMostFrequentExercises() {
+            const counts = {};
+            workouts.forEach(w => {
+                w.exercises.forEach(e => {
+                    counts[e.id] = (counts[e.id] || 0) + 1;
+                });
+            });
+
+            return Object.entries(counts)
+                .map(([id, count]) => ({ id: parseInt(id), count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5);
+        }
+        
+        function renderNewWorkout() {
+            // Если есть незавершенная тренировка
+            if (currentWorkout.length > 0) {
+                go('start_workout', { restore: true });
+                return;
+            }
+
+            let h = `
+                <div class="card">
+                    <div class="title">Начать новую тренировку</div>
+                    <input type="text" id="workoutName" placeholder="Название тренировки (необязательно)">
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="startWorkout()">Начать с нуля</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="title">Использовать шаблон</div>
+                    ${routines.length === 0 ? '<p>Нет сохраненных шаблонов.</p>' : ''}
+                    ${routines.map(r => `
+                        <div class="list-item" onclick="startWorkoutFromRoutine(${r.id})">
+                            <div class="item-details">
+                                ${r.name}
+                                <small>Упражнений: ${r.exercises.length}</small>
+                            </div>
+                            <div class="item-actions">
+                                <span style="color: #764ba2;">→</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="go('routines')">Управление шаблонами</button>
+                    </div>
+                </div>
+            `;
+            app.innerHTML = h;
+            tg.expand();
+        }
+        
+        function startWorkout() {
+            const name = document.getElementById('workoutName').value.trim();
+            const newWorkoutData = {
+                id: Date.now(),
+                name: name,
+                date: new Date().toISOString(),
+                startTime: new Date().toISOString(),
+                endTime: null,
+                exercises: []
+            };
+            currentWorkout = newWorkoutData;
+            isEditingWorkout = false;
+            save();
+            go('start_workout');
+        }
+
+        function startWorkoutFromRoutine(routineId) {
+            const routine = routines.find(r => r.id === routineId);
+            if (!routine) return;
+
+            const name = document.getElementById('workoutName').value.trim() || routine.name;
+            const newWorkoutData = {
+                id: Date.now(),
+                name: name,
+                date: new Date().toISOString(),
+                startTime: new Date().toISOString(),
+                endTime: null,
+                exercises: routine.exercises.map(e => ({
+                    id: e.id,
+                    sets: e.sets.map(s => ({
+                        kg: s.kg || 0,
+                        reps: s.reps || 0
+                    }))
+                }))
+            };
+            currentWorkout = newWorkoutData;
+            isEditingWorkout = false;
+            save();
+            go('start_workout');
+        }
+
+        function renderStartWorkout(data = {}) {
+            if (currentWorkout.length === 0 && !data.restore) {
+                go('new_workout');
+                return;
+            }
+
+            // Настройка кнопки "Назад" (на тренировке она возвращает на главную, сбрасывая тренировку)
+            tg.BackButton.show().onClick(() => {
+                if (confirm('Вы уверены, что хотите прервать текущую тренировку и вернуться на главную? Данные будут потеряны.')) {
+                    currentWorkout = [];
+                    isEditingWorkout = false;
+                    save();
+                    if (window.workoutTimer) clearInterval(window.workoutTimer);
+                    go('home');
+                }
+            });
+
+            tg.setHeaderColor('secondary_bg_color');
+            tg.MainButton.setText('Завершить тренировку').show().onClick(finishWorkout);
+
+            let h = `
+                <div class="header-card" style="background: #333;">
+                    <h2 id="currentWorkoutName">${currentWorkout.name || 'Текущая тренировка'}</h2>
+                    <p style="opacity: 0.8; margin-top: 5px;">Начало: ${new Date(currentWorkout.startTime).toLocaleTimeString('ru-RU')}</p>
+                    <p style="opacity: 0.8; margin-top: 5px;">Длительность: <span id="timer">00:00:00</span></p>
+                </div>
+
+                <div class="card" id="exercisesList">
+                    ${currentWorkout.exercises.map((e, exIndex) => renderWorkoutExercise(e, exIndex)).join('')}
+                    <div class="btn-group" style="margin-top: 10px;">
+                        <button class="btn btn-secondary" onclick="go('select_exercise', { from: 'workout' })">Добавить упражнение</button>
+                    </div>
+                </div>
+            `;
+            app.innerHTML = h;
+            tg.expand();
+            
+            // Запуск таймера
+            if (window.workoutTimer) clearInterval(window.workoutTimer);
+            window.workoutTimer = setInterval(updateTimer, 1000);
+        }
+
+        function renderWorkoutExercise(ex, exIndex) {
+            return `
+                <div class="card" id="ex-${exIndex}">
+                    <div class="title" style="display: flex; justify-content: space-between; align-items: center;">
+                        ${getExerciseName(ex.id)}
+                        <button class="btn-danger" style="padding: 5px 10px; font-size: 0.9em; flex-grow: 0;" onclick="deleteExerciseFromWorkout(${exIndex})">Удалить</button>
+                    </div>
+                    
+                    ${ex.sets.map((set, setIndex) => `
+                        <div class="set-row">
+                            <div class="set-number">${setIndex + 1}</div>
+                            <input class="kg-input" type="number" value="${set.kg}" onchange="updateSet(${exIndex}, ${setIndex}, 'kg', this.value)" placeholder="Кг">
+                            <input class="reps-input" type="number" value="${set.reps}" onchange="updateSet(${exIndex}, ${setIndex}, 'reps', this.value)" placeholder="Повт">
+                            <button class="delete-set-btn" onclick="deleteSet(${exIndex}, ${setIndex})">🗑️</button>
+                        </div>
+                    `).join('')}
+
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="addSet(${exIndex})">Добавить подход</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function updateSet(exIndex, setIndex, field, value) {
+            currentWorkout.exercises[exIndex].sets[setIndex][field] = parseFloat(value) || 0;
+            save();
+        }
+
+        function addSet(exIndex) {
+            currentWorkout.exercises[exIndex].sets.push({ kg: 0, reps: 0 });
+            save();
+            renderStartWorkout({ restore: true });
+        }
+
+        function deleteSet(exIndex, setIndex) {
+            currentWorkout.exercises[exIndex].sets.splice(setIndex, 1);
+            save();
+            renderStartWorkout({ restore: true });
+        }
+
+        function deleteExerciseFromWorkout(exIndex) {
+            if (confirm(`Удалить упражнение "${getExerciseName(currentWorkout.exercises[exIndex].id)}"?`)) {
+                currentWorkout.exercises.splice(exIndex, 1);
+                save();
+                renderStartWorkout({ restore: true });
+            }
+        }
+
+        function finishWorkout() {
+            if (confirm('Завершить и сохранить тренировку?')) {
+                // Очистка от пустых сетов
+                currentWorkout.exercises = currentWorkout.exercises
+                    .map(e => ({
+                        id: e.id,
+                        sets: e.sets.filter(s => s.kg > 0 || s.reps > 0)
+                    }))
+                    .filter(e => e.sets.length > 0);
+                
+                // Проверка на пустую тренировку
+                if (currentWorkout.exercises.length === 0) {
+                    alert('Тренировка пуста, сохранение отменено.');
+                    currentWorkout = [];
+                    isEditingWorkout = false;
+                    save();
+                    if (window.workoutTimer) clearInterval(window.workoutTimer);
+                    go('home');
+                    return;
+                }
+
+                currentWorkout.endTime = new Date().toISOString();
+                workouts.unshift(currentWorkout); // Добавляем в начало
+                
+                // Сброс текущей тренировки
+                currentWorkout = [];
+                isEditingWorkout = false;
+                save();
+                
+                if (window.workoutTimer) clearInterval(window.workoutTimer);
+                tg.MainButton.hide();
+                tg.BackButton.hide();
+                alert('✅ Тренировка сохранена!');
+                go('home');
+            }
+        }
+
+        // --- View Workout ---
+        function renderViewWorkout(workoutId) {
+            const workout = workouts.find(w => w.id === workoutId);
+            if (!workout) {
+                alert('Тренировка не найдена');
+                go('home');
+                return;
+            }
+
+            let h = `
+                <div class="header-card">
+                    <h2>${workout.name || 'Тренировка'}</h2>
+                    <p style="opacity: 0.8; margin-top: 5px;">Дата: ${formatDate(workout.date)}</p>
+                    <p style="opacity: 0.8; margin-top: 5px;">Длительность: ${getWorkoutDuration(workout.startTime, workout.endTime)}</p>
+                </div>
+
+                <div class="card">
+                    <div class="title">Упражнения</div>
+                    ${workout.exercises.map(e => `
+                        <div class="card" style="padding: 10px; margin-bottom: 8px; background: #fafafa;">
+                            <div class="title" style="margin-bottom: 5px;">${getExerciseName(e.id)}</div>
+                            <small>
+                                ${e.sets.map(s => `${s.kg}кг x ${s.reps}`).join(', ')}
+                            </small>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="editWorkout(${workout.id})">Редактировать</button>
+                    <button class="btn btn-danger" onclick="deleteWorkout(${workout.id})">Удалить</button>
+                </div>
+            `;
+            app.innerHTML = h;
+            tg.expand();
+        }
+
+        function editWorkout(workoutId) {
+            const workout = workouts.find(w => w.id === workoutId);
+            if (!workout) return;
+            
+            currentWorkout = JSON.parse(JSON.stringify(workout)); // Копируем для редактирования
+            isEditingWorkout = true;
+            save();
+            go('edit_workout', { workoutId });
+        }
+
+        function renderEditWorkout(data) {
+            // Используем currentWorkout как редактируемый объект
+            if (currentWorkout.length === 0) { go('home'); return; }
+
+            tg.setHeaderColor('secondary_bg_color');
+            tg.MainButton.setText('Сохранить изменения').show().onClick(() => saveEditedWorkout(data.workoutId));
+            
+            // Настройка кнопки "Назад" для отмены редактирования
+            tg.BackButton.show().onClick(() => { 
+                currentWorkout = []; // Отменяем редактирование
+                isEditingWorkout = false;
+                save();
+                go('view_workout', data.workoutId); 
+            });
+
+
+            let h = `
+                <div class="header-card" style="background: #333;">
+                    <input type="text" id="editWorkoutName" value="${currentWorkout.name || 'Тренировка'}" placeholder="Название тренировки" style="color: white; background: rgba(255, 255, 255, 0.2); border: none;">
+                    <p style="opacity: 0.8; margin-top: 5px;">Дата: ${formatDate(currentWorkout.date)}</p>
+                </div>
+
+                <div class="card" id="exercisesList">
+                    ${currentWorkout.exercises.map((e, exIndex) => renderWorkoutExercise(e, exIndex)).join('')}
+                    <div class="btn-group" style="margin-top: 10px;">
+                        <button class="btn btn-secondary" onclick="go('select_exercise', { from: 'edit', originalId: data.workoutId })">Добавить упражнение</button>
+                    </div>
+                </div>
+            `;
+            app.innerHTML = h;
+            tg.expand();
+        }
+
+        function saveEditedWorkout(originalId) {
+            // Обновляем имя
+            currentWorkout.name = document.getElementById('editWorkoutName').value.trim();
+            
+            // Очистка от пустых сетов
+            currentWorkout.exercises = currentWorkout.exercises
+                .map(e => ({
+                    id: e.id,
+                    sets: e.sets.filter(s => s.kg > 0 || s.reps > 0)
+                }))
+                .filter(e => e.sets.length > 0);
+
+            if (currentWorkout.exercises.length === 0) {
+                alert('Тренировка пуста, сохранение отменено. Удалите ее, если хотите.');
+                return;
+            }
+
+            // Находим и заменяем оригинальную тренировку
+            const index = workouts.findIndex(w => w.id === originalId);
+            if (index !== -1) {
+                workouts[index] = JSON.parse(JSON.stringify(currentWorkout));
+            }
+
+            currentWorkout = [];
+            isEditingWorkout = false;
+            save();
+            alert('✅ Изменения сохранены!');
+            go('view_workout', originalId);
+        }
+
+        function deleteWorkout(workoutId) {
+            if (confirm('Удалить эту тренировку безвозвратно?')) {
+                workouts = workouts.filter(w => w.id !== workoutId);
+                save();
+                alert('✅ Удалено');
+                go('home');
+            }
+        }
+
+        // --- Routines ---
+
+        function renderRoutines() {
+            let h = `
+                <div class="header-card">
+                    <h2>Шаблоны тренировок</h2>
+                    <p style="opacity: 0.8;">Сохраняйте часто используемые тренировки для быстрого старта.</p>
+                    <div class="btn-group" style="margin-top: 24px;">
+                        <button class="btn btn-add" onclick="go('add_routine')">Создать новый шаблон</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="title">Список шаблонов</div>
+                    ${routines.length === 0 ? '<p>Нет сохраненных шаблонов.</p>' : ''}
+                    ${routines.map(r => `
+                        <div class="routine-item card" style="margin-bottom: 8px;">
+                            <div class="list-item" onclick="go('add_routine', ${r.id})">
+                                <div class="item-details">
+                                    ${r.name}
+                                    <small>
+                                        ${r.exercises.map(e => getExerciseName(e.id)).join(', ')}
+                                    </small>
+                                </div>
+                                <div class="item-actions">
+                                    <span style="color: #764ba2;">→</span>
+                                </div>
+                            </div>
+                            <div class="btn-group" style="margin-top: 0; padding-top: 10px; border-top: 1px solid #eee;">
+                                <button class="btn btn-secondary" onclick="startWorkoutFromRoutine(${r.id})">Начать</button>
+                                <button class="btn btn-danger" onclick="deleteRoutine(${r.id})">Удалить</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            app.innerHTML = h;
+            tg.expand();
+        }
+
+        function renderAddRoutine(routineId) {
+            let routine = routineId ? routines.find(r => r.id === routineId) : { id: null, name: '', exercises: [] };
+            
+            tg.MainButton.setText(routineId ? 'Сохранить шаблон' : 'Создать шаблон').show().onClick(() => saveRoutine(routineId));
+
+            // Сохраняем текущий редактируемый шаблон для добавления упражнений
+            window.currentEditingRoutine = routine;
+
+            let h = `
+                <div class="header-card">
+                    <h2>${routineId ? 'Редактирование' : 'Создание'} шаблона</h2>
+                </div>
+
+                <div class="card">
+                    <div class="title">Название шаблона</div>
+                    <input type="text" id="routineName" value="${routine.name}" placeholder="Название (например, 'Верх тела')">
+                </div>
+
+                <div class="card">
+                    <div class="title">Упражнения</div>
+                    <div id="routineExercisesList">
+                        ${routine.exercises.map((e, index) => renderRoutineExercise(e, index)).join('')}
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="go('select_exercise', { from: 'routine', routineId: routineId })">Добавить упражнение</button>
+                    </div>
+                </div>
+            `;
+            app.innerHTML = h;
+            tg.expand();
+            
+        }
+
+        function renderRoutineExercise(ex, exIndex) {
+            return `
+                <div class="card" style="padding: 10px; margin-bottom: 8px; background: #fafafa;">
+                    <div class="title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        ${getExerciseName(ex.id)}
+                        <button class="btn-danger" style="padding: 5px 10px; font-size: 0.9em; flex-grow: 0;" onclick="deleteExerciseFromRoutine(${exIndex})">Удалить</button>
+                    </div>
+                    
+                    <small>
+                        Базовые подходы: ${ex.sets.map(s => `${s.kg}кг x ${s.reps}`).join(', ')}
+                    </small>
+                    
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="editRoutineSets(${exIndex})">Ред. подходы</button>
+                    </div>
+                    <div id="routineSetsEdit-${exIndex}" style="display:none; margin-top: 10px;">
+                        ${ex.sets.map((set, setIndex) => `
+                            <div class="set-row">
+                                <div class="set-number">${setIndex + 1}</div>
+                                <input class="kg-input" type="number" value="${set.kg}" onchange="updateRoutineSet(${exIndex}, ${setIndex}, 'kg', this.value)" placeholder="Кг">
+                                <input class="reps-input" type="number" value="${set.reps}" onchange="updateRoutineSet(${exIndex}, ${setIndex}, 'reps', this.value)" placeholder="Повт">
+                                <button class="delete-set-btn" onclick="deleteRoutineSet(${exIndex}, ${setIndex})">🗑️</button>
+                            </div>
+                        `).join('')}
+                        <div class="btn-group">
+                            <button class="btn btn-secondary" onclick="addRoutineSet(${exIndex})">Добавить подход</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function editRoutineSets(exIndex) {
+            const el = document.getElementById(`routineSetsEdit-${exIndex}`);
+            if (el.style.display === 'none') {
+                el.style.display = 'block';
+            } else {
+                el.style.display = 'none';
+            }
+        }
+        
+        function updateRoutineSet(exIndex, setIndex, field, value) {
+            window.currentEditingRoutine.exercises[exIndex].sets[setIndex][field] = parseFloat(value) || 0;
+            // Сохранение будет при нажатии "Сохранить шаблон"
+        }
+        
+        function addRoutineSet(exIndex) {
+            window.currentEditingRoutine.exercises[exIndex].sets.push({ kg: 0, reps: 0 });
+            // Перерисовываем с сохранением контекста
+            go('add_routine', window.currentEditingRoutine.id); 
+        }
+        
+        function deleteRoutineSet(exIndex, setIndex) {
+            window.currentEditingRoutine.exercises[exIndex].sets.splice(setIndex, 1);
+            go('add_routine', window.currentEditingRoutine.id);
+        }
+
+        function deleteExerciseFromRoutine(exIndex) {
+            if (confirm(`Удалить упражнение "${getExerciseName(window.currentEditingRoutine.exercises[exIndex].id)}" из шаблона?`)) {
+                window.currentEditingRoutine.exercises.splice(exIndex, 1);
+                go('add_routine', window.currentEditingRoutine.id);
+            }
+        }
+        
+        function saveRoutine(originalId) {
+            const name = document.getElementById('routineName').value.trim();
+            if (!name) {
+                alert('Введите название шаблона!');
+                return;
+            }
+            if (window.currentEditingRoutine.exercises.length === 0) {
+                alert('Добавьте хотя бы одно упражнение!');
+                return;
+            }
+
+            // Очистка от пустых сетов
+            window.currentEditingRoutine.exercises = window.currentEditingRoutine.exercises
+                .map(e => ({
+                    id: e.id,
+                    sets: e.sets.filter(s => s.kg > 0 || s.reps > 0)
+                }))
+                .filter(e => e.sets.length > 0);
+            
+            if (window.currentEditingRoutine.exercises.length === 0) {
+                alert('Шаблон пуст после очистки. Добавьте сеты!');
+                return;
+            }
+
+            const newRoutine = {
+                id: originalId || Date.now(),
+                name: name,
+                exercises: window.currentEditingRoutine.exercises
+            };
+
+            if (originalId) {
+                const index = routines.findIndex(r => r.id === originalId);
+                if (index !== -1) {
+                    routines[index] = newRoutine;
+                }
+            } else {
+                routines.push(newRoutine);
+            }
+
+            window.currentEditingRoutine = null;
+            save();
+            alert('✅ Шаблон сохранен!');
+            go('routines');
+        }
+
+        function deleteRoutine(routineId) {
+            if (confirm('Удалить этот шаблон?')) {
+                routines = routines.filter(r => r.id !== routineId);
+                save();
+                alert('✅ Удалено');
+                renderRoutines();
+            }
+        }
+        
+        // --- Exercises ---
+
+        function renderExercises() {
+            let h = `
+                <div class="header-card">
+                    <h2>База упражнений</h2>
+                    <p style="opacity: 0.8;">Список доступных упражнений.</p>
+                    <div class="btn-group" style="margin-top: 24px;">
+                        <button class="btn btn-add" onclick="go('add_exercise')">Добавить новое</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="title">Список упражнений</div>
+                    ${exercises.length === 0 ? '<p>Нет сохраненных упражнений.</p>' : ''}
+                    ${exercises.map(e => `
+                        <div class="list-item" onclick="go('add_exercise', ${e.id})">
+                            <div class="item-details">
+                                ${e.name}
+                                <small>${e.isCustom ? 'Пользовательское' : ''}</small>
+                            </div>
+                            <div class="item-actions">
+                                <button class="btn-danger" style="padding: 5px 10px; font-size: 0.9em;" onclick="event.stopPropagation(); deleteExercise(${e.id})">Удалить</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            app.innerHTML = h;
+            tg.expand();
+        }
+
+        function renderAddExercise(exerciseId) {
+            let exercise = exerciseId ? exercises.find(e => e.id === exerciseId) : { id: null, name: '' };
+            
+            tg.MainButton.setText(exerciseId ? 'Сохранить изменения' : 'Создать упражнение').show().onClick(() => saveExercise(exerciseId));
+
+            let h = `
+                <div class="header-card">
+                    <h2>${exerciseId ? 'Редактирование' : 'Новое'} упражнение</h2>
+                </div>
+
+                <div class="card">
+                    <div class="title">Название</div>
+                    <input type="text" id="exerciseName" value="${exercise.name}" placeholder="Например, 'Жим лежа'">
+                </div>
+            `;
+            app.innerHTML = h;
+            tg.expand();
+        }
+
+        function saveExercise(originalId) {
+            const name = document.getElementById('exerciseName').value.trim();
+            if (!name) {
+                alert('Введите название упражнения!');
+                return;
+            }
+
+            const newExercise = {
+                id: originalId || Date.now(),
+                name: name,
+                isCustom: true
+            };
+
+            if (originalId) {
+                const index = exercises.findIndex(e => e.id === originalId);
+                if (index !== -1) {
+                    exercises[index] = newExercise;
+                }
+            } else {
+                if (exercises.some(e => e.name.toLowerCase() === name.toLowerCase())) {
+                    alert('Упражнение с таким названием уже существует!');
+                    return;
+                }
+                exercises.push(newExercise);
+            }
+
+            save();
+            alert('✅ Упражнение сохранено!');
+            // Возвращаемся в предыдущий контекст после сохранения
+            const prevContext = contextStack.pop();
+            if (prevContext && prevContext.page === 'select_exercise') {
+                // Если пришли из выбора упражнения, возвращаемся в выбор, чтобы продолжить
+                go('select_exercise', prevContext.data);
+            } else {
+                 go('exercises');
+            }
+        }
+
+        function deleteExercise(exerciseId) {
+            if (confirm('Удалить это упражнение? Оно будет удалено из всех шаблонов и тренировок!')) {
+                exercises = exercises.filter(e => e.id !== exerciseId);
+                
+                // Удаление из шаблонов
+                routines.forEach(r => {
+                    r.exercises = r.exercises.filter(e => e.id !== exerciseId);
+                });
+
+                // Удаление из сохраненных тренировок
+                workouts.forEach(w => {
+                    w.exercises = w.exercises.filter(e => e.id !== exerciseId);
+                });
+
+                // Удаление из текущей тренировки, если она идет
+                if (currentWorkout.exercises) {
+                    currentWorkout.exercises = currentWorkout.exercises.filter(e => e.id !== exerciseId);
+                }
+                
+                save();
+                alert('✅ Удалено');
+                renderExercises();
+            }
+        }
+        
+        // --- Add Exercise to Workout/Routine ---
+
+        function renderSelectExercise(context) {
+            // Настройка кнопки "Назад" для возврата в тренировку/шаблон
+            tg.BackButton.show().onClick(() => {
+                if (context.from === 'workout') {
+                    go('start_workout', { restore: true });
+                } else if (context.from === 'edit') {
+                    go('edit_workout', { workoutId: context.originalId });
+                } else if (context.from === 'routine') {
+                    go('add_routine', context.routineId);
+                } else {
+                    goBack(); // На всякий случай
+                }
+            });
+
+            // Нужно сохранить текущий контекст для возврата из создания упражнения
+            contextStack.push({ page: 'select_exercise', data: context });
+
+
+            let h = `
+                <div class="header-card">
+                    <h2>Выбор упражнения</h2>
+                    <p style="opacity: 0.8;">Выберите упражнение для добавления.</p>
+                </div>
+
+                <div class="card">
+                    <div class="title">Доступные упражнения</div>
+                    <input type="text" id="searchEx" placeholder="Поиск..." onkeyup="filterExercises(this.value)">
+                    <div id="exerciseSelectionList">
+                        ${exercises.map(e => `
+                            <div class="list-item" onclick="addSelectedExercise(${e.id}, ${JSON.stringify(context).replace(/'/g, "\\'")})">
+                                <div class="item-details">${e.name}</div>
+                                <div class="item-actions">
+                                    <span style="color: #764ba2;">+</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="go('add_exercise', null)">Создать новое упражнение</button>
+                </div>
+            `;
+            app.innerHTML = h;
+            tg.expand();
+        }
+
+        function filterExercises(query) {
+            const list = document.getElementById('exerciseSelectionList');
+            const items = list.getElementsByClassName('list-item');
+            const q = query.toLowerCase();
+
+            for (let i = 0; i < items.length; i++) {
+                const text = items[i].querySelector('.item-details').textContent.toLowerCase();
+                if (text.includes(q)) {
+                    items[i].style.display = 'flex';
+                } else {
+                    items[i].style.display = 'none';
+                }
+            }
+        }
+
+        function addSelectedExercise(exId, context) {
+            const newExData = {
+                id: exId,
+                sets: [{ kg: 0, reps: 0 }]
+            };
+
+            // Удаляем текущий контекст select_exercise из стека, т.к. мы уходим дальше
+            contextStack.pop(); 
+
+            if (context.from === 'workout' || context.from === 'edit') {
+                // Добавление в текущую тренировку
+                currentWorkout.exercises.push(newExData);
+                save();
+                go(context.from === 'edit' ? 'edit_workout' : 'start_workout', context.from === 'edit' ? { workoutId: context.originalId } : { restore: true });
+            } else if (context.from === 'routine') {
+                // Добавление в шаблон
+                if (window.currentEditingRoutine.exercises.some(e => e.id === exId)) {
+                    alert('Это упражнение уже есть в шаблоне!');
+                    // Возвращаемся обратно, сохраняя контекст для кнопки "Назад"
+                    go('select_exercise', context); 
+                    return;
+                }
+                window.currentEditingRoutine.exercises.push(newExData);
+                go('add_routine', context.routineId);
+            }
+        }
+        
+        // --- Settings ---
+        function renderSettings() {
+            let h = `
+                <div class="header-card">
+                    <h2>Настройки</h2>
+                </div>
+
+                <div class="card">
+                    <div class="title">База данных</div>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="go('exercises')">Управление упражнениями</button>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="go('routines')">Управление шаблонами</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="title">Сброс данных</div>
+                    <div class="btn-group">
+                        <button class="btn btn-danger" onclick="resetAll()">Удалить ВСЕ данные</button>
+                    </div>
+                </div>
+
+                <div class="card" style="text-align: center;">
+                    <p style="color: #666; font-size: 14px;">💪 Трекер Тренировок **v2.4** (Дизайн v1.9 + FIX Навигации)<br>Все данные хранятся локально</p>
+                </div>
+            `;
+            app.innerHTML = h;
+            tg.expand();
+        }
+
+        function resetAll() {
+            if (confirm('⚠️ УДАЛИТЬ ВСЕ ДАННЫЕ?')) {
+                if (confirm('Точно? Последнее предупреждение!')) {
+                    exercises = [];
+                    workouts = [];
+                    routines = [];
+                    currentWorkout = [];
+                    isEditingWorkout = false;
+                    localStorage.clear();
+                    alert('🔥 Все данные сброшены. Перезагрузите страницу.');
+                    go('home'); // Rerender from home
+                }
+            }
+        }
+        
+        // --- Timer Functions ---
+
+        function updateTimer() {
+            const timerEl = document.getElementById('timer');
+            if (timerEl && currentWorkout.startTime) {
+                timerEl.textContent = getWorkoutDuration(currentWorkout.startTime, new Date().toISOString());
+            }
+        }
+
+        // --- Initialization ---
+
+        function init() {
+            // Добавляем обработчик для MainButton
+            tg.onEvent('mainButtonClicked', finishWorkout);
+            
+            // Если есть незавершенная тренировка, восстанавливаем ее
+            if (currentWorkout.startTime) {
+                go('start_workout', { restore: true });
+            } else {
+                go('home');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

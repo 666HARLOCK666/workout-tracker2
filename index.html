@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Трекер Тренировок</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
+            background: #f5f5f5;
+        }
+        .container { max-width: 600px; margin: 0 auto; padding: 16px; padding-bottom: 80px; }
+        .header-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 24px; color: white; margin-bottom: 16px; }
+        .stat-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr 1fr; 
+            gap: 16px; 
+            margin-top: 16px; 
+            text-align: center;
+        }
+        .stat-item {
+            background: rgba(255, 255, 255, 0.15); 
+            border-radius: 8px;
+            padding: 8px 0;
+        }
+        .stat-item p:first-child { 
+            font-size: 11px; 
+            opacity: 0.8; 
+            margin-bottom: 2px; 
+            line-height: 1.1;
+        }
+        .stat-item p:last-child { 
+            font-size: 20px; 
+            font-weight: bold; 
+            line-height: 1.2;
+        }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .btn { padding: 20px; border-radius: 12px; border: none; color: white; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .btn-green { background: #10b981; }
+        .btn-orange { background: #f59e0b; }
+        .btn-blue { background: #3b82f6; }
+        .btn-purple { background: #8b5cf6; }
+        .card { 
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px; 
+            padding: 16px; 
+            margin-bottom: 16px; 
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .back-btn { 
+            background: #3b82f6; 
+            color: white; 
+            border: none; 
+            width: 36px;
+            height: 36px;
+            border-radius: 50%; 
+            font-size: 20px; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            line-height: 1; 
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.4);
+            padding-right: 2px;
+        }
+        .save-btn { 
+            background: #10b981; 
+            color: white; 
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            box-shadow: 0 2px 4px rgba(16, 185, 129, 0.4); 
+        }
+        input[type="text"], input[type="date"], input[type="number"], select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .exercise-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 12px; 
+            background: #f9f9f9; 
+            border-radius: 8px; 
+            margin-bottom: 8px; 
+            cursor: pointer; 
+        }
+        .delete-btn { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 20px; }
+        .set-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+        .set-label { font-weight: 600; width: 100px; }
+        .month-nav { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 16px; 
+        }
+        .month-nav button { 
+            background: #3b82f6; 
+            color: white; 
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 8px; 
+            font-size: 14px; 
+            font-weight: 600; 
+            cursor: pointer; 
+        }
+        .month-nav h3 { 
+            font-size: 20px; 
+            color: #333; 
+            text-transform: capitalize;
+        }
+        .calendar-header { 
+            display: grid; 
+            grid-template-columns: repeat(7, 1fr); 
+            gap: 8px; 
+            margin-bottom: 8px; 
+        }
+        .calendar-header div { 
+            font-weight: 600; 
+            text-align: center; 
+            color: #666; 
+            font-size: 14px; 
+        }
+        .calendar-grid { 
+            display: grid; 
+            grid-template-columns: repeat(7, 1fr); 
+            gap: 8px; 
+        }
+        .calendar-day { 
+            aspect-ratio: 1; 
+            border-radius: 8px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 14px; 
+            cursor: pointer; 
+            border: none; 
+        }
+        .day-empty { background: #f0f0f0; }
+        .day-padding { 
+            background: #f9f9f9; 
+            opacity: 0.8; 
+        } 
+        .day-workout { background: #10b981; color: white; font-weight: bold; }
+        .day-today { box-shadow: 0 0 0 2px #3b82f6; }
+        .empty-state { text-align: center; padding: 40px 20px; color: #999; }
+        .hide { display: none; }
+        canvas { max-width: 100%; height: 250px !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="view"></div>
+    </div>
+    <script>
+        let exercises = [];
+        let workouts = [];
+        let routines = []; 
+        let currentView = 'home';
+        let selectedDate = new Date().toISOString().split('T')[0];
+        let currentWorkout = [];
+        let selExId = null; 
+        let currentViewDate = new Date(); 
+        let selExIdHome = null; 
+        let selectedExIdEdit = null; 
+        let selectedRoutineIdEdit = null; 
+
+        if (window.Telegram?.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
+        }
+
+        function init() {
+            try {
+                const ex = localStorage.getItem('workout-exercises');
+                const wo = localStorage.getItem('workout-logs');
+                const rt = localStorage.getItem('workout-routines'); 
+                exercises = ex ? JSON.parse(ex) : [];
+                workouts = wo ? JSON.parse(wo) : [];
+                routines = rt ? JSON.parse(rt) : []; 
+            } catch (e) {
+                console.error("Ошибка загрузки данных из localStorage:", e);
+                exercises = [];
+                workouts = [];
+                routines = [];
+            }
+            // Sort workouts by date descending
+            workouts.sort((a, b) => new Date(b.date) - new Date(a.date));
+            render();
+        }
+
+        function save() {
+            try {
+                localStorage.setItem('workout-exercises', JSON.stringify(exercises));
+                localStorage.setItem('workout-logs', JSON.stringify(workouts));
+                localStorage.setItem('workout-routines', JSON.stringify(routines)); 
+            } catch (e) {
+                console.error("Ошибка сохранения данных в localStorage:", e);
+            }
+        }
+        
+        function exportData() {
+            const data = {
+                exercises: exercises,
+                workouts: workouts,
+                routines: routines
+            };
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const date = new Date().toISOString().split('T')[0];
+            a.download = `workout_tracker_data_${date}.json`;
+            
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            alert('✅ Данные экспортированы!');
+        }
+
+        function importData() {
+            if (!confirm('Внимание! Импорт заменит ВСЕ текущие данные (упражнения, тренировки и шаблоны). Продолжить?')) {
+                return;
+            }
+
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        
+                        if (!importedData.exercises || !importedData.workouts || !importedData.routines) {
+                            throw new Error("Неверный формат файла данных. Должен содержать exercises, workouts и routines.");
+                        }
+                        
+                        exercises = importedData.exercises;
+                        workouts = importedData.workouts;
+                        routines = importedData.routines;
+
+                        save();
+                        alert('✅ Данные успешно импортированы!');
+                        go('home'); 
+                    } catch (error) {
+                        alert('❌ Ошибка импорта: ' + error.message);
+                        console.error('Import Error:', error);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+
+        function render() {
+            const views = {
+                home: renderHome,
+                exercises: renderExercises,
+                routines: renderRoutines, 
+                editRoutine: renderEditRoutine, 
+                newWorkout: renderNewWorkout,
+                editWorkout: renderEditWorkout,
+                calendar: renderCalendar,
+                detail: renderDetail,
+                stats: renderStats,
+                exerciseStats: renderExerciseStats,
+                settings: renderSettings,
+                homeExDetail: renderHomeExerciseDetail, 
+                editExercise: renderEditExercise,
+                workoutDetails: renderWorkoutDetails
+            };
+            document.getElementById('view').innerHTML = views[currentView]();
+            window.scrollTo(0, 0); 
+        }
+
+        function go(view) {
+            currentView = view;
+            if (view === 'calendar' || view === 'home') {
+                 currentViewDate = new Date();
+                 selectedDate = new Date().toISOString().split('T')[0]; 
+            }
+            if (currentView !== 'editExercise') {
+                selectedExIdEdit = null;
+            }
+            if (currentView !== 'editRoutine') {
+                selectedRoutineIdEdit = null;
+            }
+            render();
+        }
+        
+        function changeMonth(offset) {
+            currentViewDate.setDate(1); 
+            currentViewDate.setMonth(currentViewDate.getMonth() + offset);
+            render(); 
+        }
+
+        function viewHomeExDetail(exId) {
+            selExIdHome = exId;
+            go('homeExDetail');
+        }
+
+        function editEx(id) {
+            selectedExIdEdit = id;
+            go('editExercise');
+        }
+
+        function editRoutine(id) { 
+            selectedRoutineIdEdit = id;
+            go('editRoutine');
+        }
+
+        // НОВАЯ ФУНКЦИЯ: Обработчик клика по дате в календаре
+        function viewDetail(dateStr) {
+            selectedDate = dateStr;
+            go('detail');
+        }
+
+        function getMonday(d) {
+            d = new Date(d);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+            const monday = new Date(d.setDate(diff));
+            monday.setHours(12, 0, 0, 0); 
+            return monday.toISOString().split('T')[0];
+        }
+
+        function getWeeklyStreak() {
+            if (!workouts.length) return 0;
+            const uniqueWeekIds = new Set(workouts.map(w => getMonday(w.date)));
+            let streak = 0;
+            let curr = new Date();
+            curr.setHours(12, 0, 0, 0); 
+            let currentMonday = new Date(getMonday(curr));
+            
+            while (true) {
+                const id = currentMonday.toISOString().split('T')[0];
+                if (uniqueWeekIds.has(id)) {
+                    streak++;
+                    currentMonday.setDate(currentMonday.getDate() - 7);
+                } else {
+                    break;
+                }
+                if (streak > 260) break; 
+            }
+            return streak;
+        }
+
+        function getStreak() {
+            if (!workouts.length) return 0;
+            const dates = new Set(workouts.map(w => w.date));
+            let streak = 0;
+            let curr = new Date();
+            curr.setHours(12, 0, 0, 0); 
+
+            for (let i = 0; i < 365; i++) {
+                const ds = curr.toISOString().split('T')[0];
+                const isToday = i === 0 && dates.has(ds);
+                const isYesterday = i > 0 && dates.has(ds);
+
+                if (isToday || isYesterday) {
+                    streak++;
+                    curr.setDate(curr.getDate() - 1);
+                } else if (i === 0) {
+                    curr.setDate(curr.getDate() - 1);
+                } else {
+                    break;
+                }
+            }
+            return streak;
+        }
+
+        function calculateSetVolume(set, type) {
+            const reps = parseFloat(set.reps || 0);
+            if (type === 'weight') {
+                const weight = parseFloat(set.weight || 0);
+                return weight * reps; 
+            } else if (type === 'distance' || type === 'time' || type === 'reps') {
+                return reps; 
+            }
+            return 0;
+        }
+
+        function calculateWorkoutVolume(workout) {
+            let totalVolume = 0;
+            workout.exercises.forEach(ex => {
+                const baseEx = exercises.find(e => e.id === ex.exerciseId);
+                const type = baseEx ? baseEx.type : 'reps';
+                
+                ex.sets.forEach(set => {
+                    totalVolume += calculateSetVolume(set, type);
+                });
+            });
+            return Math.round(totalVolume); 
+        }
+
+        function getMaxSetVolume(exerciseId) {
+            let maxVolume = 0;
+            workouts.forEach(w => {
+                const ex = w.exercises.find(e => e.exerciseId === exerciseId);
+                if (ex) {
+                    const baseEx = exercises.find(e => e.id === ex.exerciseId);
+                    const type = baseEx ? baseEx.type : 'reps';
+
+                    ex.sets.forEach(set => {
+                        const volume = calculateSetVolume(set, type);
+                        if (volume > maxVolume + 0.001) { 
+                            maxVolume = volume;
+                        }
+                    });
+                }
+            });
+            return maxVolume;
+        }
+
+        // NEW: Function to filter workouts by the last N days
+        function getWorkoutsInPeriod(days) {
+            if (days === 'all') return workouts;
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - days);
+            // Ensure time is set to 00:00:00 for accurate comparison
+            cutoffDate.setHours(0, 0, 0, 0); 
+            return workouts.filter(w => new Date(w.date) >= cutoffDate);
+        }
+
+        // NEW: Function to calculate overall stats for a set of workouts
+        function getOverallStatsForPeriod(filteredWorkouts) {
+            let totalVolume = 0;
+            const uniqueExercises = new Set();
+            let totalSets = 0;
+
+            filteredWorkouts.forEach(w => {
+                totalVolume += calculateWorkoutVolume(w);
+                w.exercises.forEach(ex => {
+                    uniqueExercises.add(ex.exerciseId);
+                    totalSets += ex.sets.length;
+                });
+            });
+
+            return {
+                workouts: filteredWorkouts.length,
+                volume: totalVolume,
+                exercises: uniqueExercises.size,
+                sets: totalSets
+            };
+        }
+
+
+        function renderHome() {
+            const dayStreak = getStreak();
+            const weekStreak = getWeeklyStreak(); 
+            const todayDateStr = new Date().toISOString().split('T')[0]; 
+            const today = workouts.find(w => w.date === todayDateStr); 
+            let h = `
+                <div class="header-card">
+                    <h1 style="font-size: 24px; margin-bottom: 8px;">💪 Трекер Тренировок</h1>
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <p>Стрик</p>
+                            <p>(Дни) 🔥</p>
+                            <p>${dayStreak}</p>
+                        </div>
+                        <div class="stat-item">
+                            <p>Стрик</p>
+                            <p>(Недели) 🗓️</p>
+                            <p>${weekStreak}</p>
+                        </div>
+                        <div class="stat-item">
+                            <p>Всего</p>
+                            <p>Тренировок</p>
+                            <p>${workouts.length}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="btn-grid">
+                    <button class="btn btn-green" onclick="go('newWorkout')"><span style="font-size: 32px;">➕</span><span>Новая тренировка</span></button>
+                    <button class="btn btn-orange" onclick="go('exercises')"><span style="font-size: 32px;">🏋️</span><span>Упражнения</span></button>
+                    <button class="btn btn-purple" onclick="go('routines')"><span style="font-size: 32px;">📋</span><span>Шаблоны</span></button>
+                    <button class="btn btn-blue" onclick="go('calendar')"><span style="font-size: 32px;">📅</span><span>Календарь</span></button>
+                </div>
+                <button class="btn btn-purple" onclick="go('stats')" style="width: 100%; margin-top: 12px; background: #8b5cf6;">
+                    <span style="font-size: 20px;">📊 Статистика</span>
+                </button>
+                <button class="btn btn-blue" onclick="go('settings')" style="width: 100%; margin-top: 12px; background: #6b7280; margin-bottom: 16px;">
+                    <span style="font-size: 20px;">⚙️ Настройки</span>
+                </button>
+            `;
+            if (today) {
+                h += `
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 style="margin: 0;">Сегодняшняя тренировка</h3>
+                        <button onclick="editToday()" class="save-btn" style="background: #3b82f6; box-shadow: none; padding: 8px 12px; font-size: 16px;">✏️ Редактировать</button>
+                    </div>`;
+                today.exercises.forEach(ex => {
+                    const e = exercises.find(e => e.id === ex.exerciseId);
+                    const t = e ? e.type : 'reps';
+                    const totalReps = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
+                    let d = '';
+                    if (t === 'weight') {
+                        const tw = ex.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0);
+                        d = `${ex.sets.length} подходов • ${totalReps} повт • ${Math.round(tw)} кг`;
+                    } else if (t === 'distance') d = `${ex.sets.length} подходов • ${totalReps.toFixed(1)} км`;
+                    else if (t === 'time') d = `${ex.sets.length} подходов • ${Math.round(totalReps)} мин`;
+                    else d = `${ex.sets.length} подходов • ${totalReps} повторений`;
+                    
+                    h += `<div style="padding: 12px 0; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="viewHomeExDetail('${ex.exerciseId}')">
+                        <div>
+                            <div style="font-weight: 600;">${ex.exerciseName}</div>
+                            <div style="color: #666; font-size: 14px;">${d}</div>
+                        </div>
+                        <span style="font-size: 24px; color: #bbb;">›</span>
+                    </div>`;
+                });
+                h += '</div>';
+            }
+            return h;
+        }
+
+        function renderHomeExerciseDetail() {
+            if (!selExIdHome) return go('home'); 
+            const todayDate = new Date().toISOString().split('T')[0];
+            const wo = workouts.find(w => w.date === todayDate);
+            if (!wo) { selExIdHome = null; return go('home'); } 
+            const ex = wo.exercises.find(e => e.exerciseId === selExIdHome);
+            if (!ex) { selExIdHome = null; return go('home'); } 
+            const eBase = exercises.find(e => e.id === ex.exerciseId);
+            const t = eBase ? eBase.type : 'reps';
+            
+            const maxVol = getMaxSetVolume(ex.exerciseId);
+
+            let h = `<div class="top-bar">
+                        <button class="back-btn" onclick="go('home')">←</button>
+                        <h2 style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ex.exerciseName}</h2>
+                        <div style="width: 36px;"></div>
+                     </div>`;
+            h += `<div class="card">`;
+            ex.sets.forEach(set => {
+                const setVol = calculateSetVolume(set, t);
+                const isPR = (setVol > 0 && Math.abs(setVol - maxVol) < 0.01); 
+                const prLabel = isPR ? ' <span style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">🔥 PR</span>' : '';
+
+                h += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 4px; border-bottom: 1px solid #eee;">
+                    <span style="font-weight: 600; color: #555;">Подход ${set.setNumber}</span>
+                    <span style="color: #000; font-size: 16px; font-weight: 500;">`;
+                if (t === 'weight') h += `${set.weight || 0} кг × ${set.reps || 0} повт${prLabel}`;
+                else if (t === 'distance') h += `${(set.reps || 0).toFixed(1)} км${prLabel}`;
+                else if (t === 'time') h += `${set.reps || 0} мин${prLabel}`;
+                else h += `${set.reps || 0} повторений${prLabel}`;
+                h += `</span></div>`;
+            });
+            let sum = '';
+            if (t === 'weight') {
+                const tr = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
+                const tw = ex.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0);
+                sum = `${ex.sets.length} подходов • ${tr} повт • ${Math.round(tw)} кг общий`;
+            } else if (t === 'distance') {
+                const tr = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
+                sum = `${ex.sets.length} подходов • ${tr.toFixed(1)} км всего`;
+            } else if (t === 'time') {
+                const tr = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
+                sum = `${ex.sets.length} подходов • ${Math.round(tr)} мин всего`;
+            } else {
+                const tr = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
+                sum = `${ex.sets.length} подходов • ${tr} повторений`;
+            }
+            h += `<div style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #ddd; color: #333; font-weight: 600; text-align: right; font-size: 14px;">Всего: ${sum}</div></div>`;
+            return h;
+        }
+
+        function renderCalendar() {
+            const workoutDates = new Set(workouts.map(w => w.date));
+            const todayStr = new Date().toISOString().split('T')[0];
+            const year = currentViewDate.getFullYear();
+            const month = currentViewDate.getMonth(); 
+            const firstDayOfMonth = new Date(year, month, 1);
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            let startDayOfWeek = firstDayOfMonth.getDay(); 
+            if (startDayOfWeek === 0) startDayOfWeek = 7; 
+            const paddingDays = startDayOfWeek - 1; 
+            const monthName = currentViewDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+            let h = `<div class="top-bar">
+                        <button class="back-btn" onclick="go('home')">←</button>
+                        <h2>Календарь</h2>
+                        <div style="width: 36px;"></div>
+                     </div>
+                     <div class="card">
+                        <div class="month-nav">
+                            <button onclick="changeMonth(-1)">‹ Пред.</button>
+                            <h3>${monthName}</h3>
+                            <button onclick="changeMonth(1)">След. ›</button>
+                        </div>
+                        <div class="calendar-header">
+                            <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+                        </div>
+                        <div class="calendar-grid">`;
+            for (let i = 0; i < paddingDays; i++) {
+                h += `<div class="calendar-day day-padding"></div>`;
+            }
+            for (let day = 1; day <= daysInMonth; day++) {
+                const d = new Date(year, month, day, 12); 
+                const ds = d.toISOString().split('T')[0];
+                const hasWorkout = workoutDates.has(ds);
+                const isToday = (ds === todayStr);
+                let classes = 'calendar-day';
+                if (hasWorkout) classes += ' day-workout';
+                else classes += ' day-empty';
+                if (isToday) classes += ' day-today';
+                
+                // ИСПРАВЛЕНИЕ: Теперь вызывается viewDetail для установки даты
+                const action = hasWorkout ? `onclick="viewDetail('${ds}')"` : 'disabled';
+                
+                h += `<button class="${classes}" ${action}>${day}</button>`;
+            }
+            h += '</div></div>';
+            return h;
+        }
+
+        // ОБНОВЛЕННАЯ ФУНКЦИЯ: Теперь использует глобальный selectedDate
+        function renderDetail() {
+            const wo = workouts.find(w => w.date === selectedDate);
+            if (!wo) return go('calendar');
+
+            const totalVolume = calculateWorkoutVolume(wo);
+
+            let h = `<div class="top-bar">
+                        <button class="back-btn" onclick="go('calendar')">←</button>
+                        <h2>Тренировка: ${new Date(selectedDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}</h2>
+                        <button onclick="editWorkout('${selectedDate}')" class="save-btn" style="background: #3b82f6; box-shadow: none; padding: 8px 12px; font-size: 16px;">✏️</button>
+                     </div>
+                     <div class="card header-card" style="background: #3b82f6;">
+                        <h3 style="margin-bottom: 8px; font-size: 18px;">Объем тренировки:</h3>
+                        <p style="font-size: 32px; font-weight: bold;">${totalVolume} ед. объема</p>
+                     </div>
+                     <div class="card">
+                        <h3 style="margin-bottom: 12px;">Упражнения</h3>`;
+            
+            wo.exercises.forEach(ex => {
+                const eBase = exercises.find(e => e.id === ex.exerciseId);
+                const t = eBase ? eBase.type : 'reps';
+                const totalReps = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
+                let d = '';
+                if (t === 'weight') {
+                    const tw = ex.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0);
+                    d = `${ex.sets.length} подходов • ${totalReps} повт • ${Math.round(tw)} кг`;
+                } else if (t === 'distance') d = `${ex.sets.length} подходов • ${totalReps.toFixed(1)} км`;
+                else if (t === 'time') d = `${ex.sets.length} подходов • ${Math.round(totalReps)} мин`;
+                else d = `${ex.sets.length} подходов • ${totalReps} повторений`;
+
+                let setsHTML = '';
+                const maxVol = getMaxSetVolume(ex.exerciseId); 
+                
+                ex.sets.forEach(set => {
+                    const setVol = calculateSetVolume(set, t);
+                    const isPR = (setVol > 0 && Math.abs(setVol - maxVol) < 0.01); 
+                    const prLabel = isPR ? ' <span style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">🔥 PR</span>' : '';
+                    
+                    setsHTML += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 4px; border-bottom: 1px solid #eee;">
+                        <span style="font-weight: 600; color: #555;">Подход ${set.setNumber}</span>
+                        <span style="color: #000; font-size: 16px; font-weight: 500;">`;
+                    if (t === 'weight') setsHTML += `${set.weight || 0} кг × ${set.reps || 0} повт${prLabel}`;
+                    else if (t === 'distance') setsHTML += `${(set.reps || 0).toFixed(1)} км${prLabel}`;
+                    else if (t === 'time') setsHTML += `${set.reps || 0} мин${prLabel}`;
+                    else setsHTML += `${set.reps || 0} повторений${prLabel}`;
+                    setsHTML += `</span></div>`;
+                });
+                
+                h += `<div style="margin-bottom: 16px;">
+                    <div style="font-weight: 600; padding: 8px 0;">${ex.exerciseName}</div>
+                    <div style="color: #666; font-size: 14px; margin-bottom: 8px;">${d}</div>
+                    <div style="background: #fff; border-radius: 8px; padding: 4px;">${setsHTML}</div>
+                </div>`;
+            });
+
+            h += `</div>`;
+            return h;
+        }
+
+        function drawChart(id, data, labels, type, color) {
+            const ctx = document.getElementById(id);
+            if (!ctx) return;
+            
+            if (window[id + 'Chart']) {
+                window[id + 'Chart'].destroy();
+            }
+
+            window[id + 'Chart'] = new Chart(ctx, {
+                type: type, 
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '',
+                        data: data,
+                        backgroundColor: color + '99', 
+                        borderColor: color,
+                        borderWidth: type === 'line' ? 3 : 0,
+                        tension: 0.4,
+                        pointRadius: type === 'line' ? 4 : 0,
+                        fill: type === 'line' ? 'start' : false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+        
+        /* MODIFIED/NEW FUNCTION: renderStats (Overall Statistics) */
+        function renderStats() {
+            const periods = {
+                7: 'Неделя',
+                30: 'Месяц',
+                90: '3 Месяца',
+                180: '6 Месяцев',
+                365: 'Год',
+                'all': 'Все время'
+            };
+
+            let h = `<div class="top-bar">
+                        <button class="back-btn" onclick="go('home')">←</button>
+                        <h2>📊 Статистика (Общая)</h2>
+                        <div style="width: 36px;"></div>
+                     </div>
+                     <div class="card">
+                        <h3 style="margin-bottom: 12px;">Сводка по периодам (Объем/Тренировки)</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">`;
+
+            Object.keys(periods).forEach(days => {
+                const filteredWorkouts = getWorkoutsInPeriod(days === 'all' ? 'all' : parseInt(days));
+                const stats = getOverallStatsForPeriod(filteredWorkouts);
+                const periodLabel = periods[days];
+                const volumeUnit = 'ед. объема' // General unit for mixed workouts
+
+                h += `<div class="stat-item" style="background: #f0f4f8; padding: 12px; border-radius: 8px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #333;">
+                        <p style="font-size: 14px; font-weight: 600; color: #3b82f6; margin-bottom: 4px;">${periodLabel}</p>
+                        <p style="font-size: 18px; font-weight: bold; margin-bottom: 4px;">${stats.workouts} 🏋️‍♂️</p>
+                        <p style="font-size: 12px; color: #666;">${stats.sets} подх. / ${stats.exercises} упр.</p>
+                        <p style="font-size: 18px; font-weight: bold; color: #10b981; margin-top: 8px; margin-bottom: 4px;">${stats.volume.toLocaleString()} ${volumeUnit}</p>
+                        <p style="font-size: 12px; color: #666;">Общий объем</p>
+                     </div>`;
+            });
+            
+            h += `</div></div>`;
+            
+            h += `<div class="card"><h3 style="margin-bottom: 12px;">Статистика по упражнениям</h3>`;
+            
+            if (exercises.length === 0) {
+                h += `<div class="empty-state" style="padding: 20px;">Сначала добавьте упражнения.</div>`;
+            } else {
+                exercises.sort((a, b) => a.name.localeCompare(b.name)).forEach(ex => {
+                    const exWo = workouts.filter(w => w.exercises.some(e => e.exerciseId === ex.id));
+                    const totalWorkouts = exWo.length;
+                    let stats = ''; 
+                    
+                    if (totalWorkouts > 0) {
+                        let totalVal = 0;
+                        exWo.forEach(w => {
+                            const e = w.exercises.find(e => e.exerciseId === ex.id);
+                            if (e) {
+                                e.sets.forEach(s => {
+                                    totalVal += calculateSetVolume(s, ex.type);
+                                });
+                            }
+                        });
+                        
+                        let unit = ex.type === 'weight' ? 'кг' : ex.type === 'distance' ? 'км' : ex.type === 'time' ? 'мин' : 'повт';
+                        let displayVal = ex.type === 'distance' ? totalVal.toFixed(1) : Math.round(totalVal);
+                        
+                        stats = `(${totalWorkouts} трен., ${displayVal} ${unit} всего)`;
+                    } else {
+                        stats = '(Нет данных)';
+                    }
+                    
+                    h += `<div class="exercise-item" onclick="viewExStats('${ex.id}')" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-weight: 600;">${ex.name}</div>
+                        <div style="color: #666; font-size: 14px;">${stats}</div>
+                    </div>`;
+                });
+            }
+            
+            h += `</div>`;
+            
+            return h;
+        }
+
+        // NEW: Helper to navigate to exercise stats
+        function viewExStats(exId) {
+            selExId = exId;
+            go('exerciseStats');
+        }
+
+        /* MODIFIED/COMPLETED FUNCTION: renderExerciseStats (Detailed Exercise Stats with all periods) */
+        function renderExerciseStats() {
+            if (!selExId) return '';
+            const ex = exercises.find(e => e.id === selExId);
+            if (!ex) return '';
+            
+            const exWo = workouts.filter(w => w.exercises.some(e => e.exerciseId === ex.id));
+            let ts = 0, tr = 0; // Totals: sets, reps/volume (base unit)
+            
+            exWo.forEach(w => {
+                const e = w.exercises.find(e => e.exerciseId === ex.id);
+                if (e) {
+                    ts += e.sets.length;
+                    e.sets.forEach(s => {
+                        tr += (s.reps || 0); 
+                    });
+                }
+            });
+
+            // Max values (Max Weight, Max Reps/Dist/Time in a single set)
+            let maxSetVolume = getMaxSetVolume(ex.id);
+            let maxRepsOrWeight = 0; 
+            let maxReps = 0;
+
+            exWo.forEach(w => {
+                const e = w.exercises.find(e => e.exerciseId === ex.id);
+                if (e) {
+                    e.sets.forEach(s => {
+                        const reps = s.reps || 0;
+                        const weight = s.weight || 0;
+                        if (ex.type === 'weight' && weight > maxRepsOrWeight) maxRepsOrWeight = weight;
+                        if (reps > maxReps) maxReps = reps; 
+                    });
+                }
+            });
+
+            let ul = '', us = '';
+            if (ex.type === 'distance') { ul = 'Километры'; us = 'км'; }
+            else if (ex.type === 'time') { ul = 'Минуты'; us = 'мин'; }
+            else { ul = 'Повторения'; us = 'повт'; }
+            
+            // --- HTML Structure (Compact Header) ---
+            let h = `<div class="top-bar"><button class="back-btn" onclick="go('stats')">←</button>
+                <h2 style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${ex.name}</h2><div style="width: 36px;"></div></div>
+                
+                <div class="header-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <h3 style="margin-bottom: 16px; font-size: 16px;">Общая статистика за все время</h3>
+                    <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                        <div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Тренировок</p><p style="font-size: 18px; color: white;">${exWo.length}</p></div>
+                        <div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Подходов</p><p style="font-size: 18px; color: white;">${ts}</p></div>
+                        <div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Всего ${ul}</p><p style="font-size: 18px; color: white;">${ex.type === 'distance' ? tr.toFixed(1) : Math.round(tr)} ${us}</p></div>
+                    </div>
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.3);">
+                        <p style="font-size: 12px; opacity: 0.8; margin-bottom: 2px;">Персональные рекорды (PR)</p>
+                        <div style="display: flex; justify-content: space-between; gap: 16px;">
+                            <div style="flex: 1; text-align: center;">
+                                <p style="font-size: 11px; opacity: 0.8; margin-bottom: 2px;">Макс. ${ex.type === 'weight' ? 'вес' : ul.toLowerCase()}</p>
+                                <p style="font-size: 16px; font-weight: bold; line-height: 1.2;">
+                                    ${ex.type === 'weight' ? `${maxRepsOrWeight} кг` : `${Math.round(maxReps)} ${us}`}
+                                </p>
+                            </div>
+                            <div style="flex: 1; text-align: center;">
+                                <p style="font-size: 11px; opacity: 0.8; margin-bottom: 2px;">Макс. объем за сет</p>
+                                <p style="font-size: 16px; font-weight: bold; line-height: 1.2;">
+                                    ${Math.round(maxSetVolume)} ${ex.type === 'weight' ? 'кг' : us}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+
+            if (!exWo.length) {
+                h += '<div class="empty-state"><div style="font-size: 48px;">📊</div><p>Нет данных</p></div>';
+            } else {
+                const today = new Date();
+                
+                // Helper to generate data points for a specific period
+                function generateChartData(days, periodType) { // periodType: 'day', 'month'
+                    const dataPoints = [];
+                    
+                    if (periodType === 'day') {
+                        // Iterates by day (for 7 and 30 days)
+                        for (let i = days - 1; i >= 0; i--) {
+                            const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+                            const ds = d.toISOString().split('T')[0];
+                            const wo = workouts.find(w => w.date === ds);
+                            let reps = 0, sets = 0;
+                            if (wo) {
+                                const e = wo.exercises.find(e => e.exerciseId === ex.id);
+                                if (e) {
+                                    sets = e.sets.length;
+                                    reps = e.sets.reduce((sum, set) => sum + (set.reps || 0), 0);
+                                }
+                            }
+                            dataPoints.push({ 
+                                label: days === 7 ? d.toLocaleDateString('ru-RU', { weekday: 'short' }) : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'numeric' }), 
+                                reps: reps, 
+                                sets: sets
+                            });
+                        }
+                    } else if (periodType === 'month') {
+                        // Iterates by month (for 90, 180, 365 days)
+                        const numMonths = Math.ceil(days / 30.5); // Use 30.5 for a better month approximation
+                        for (let i = numMonths - 1; i >= 0; i--) {
+                            const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                            const ms = new Date(d.getFullYear(), d.getMonth(), 1);
+                            const me = new Date(d.getFullYear(), d.getMonth() + 1, 0); 
+                            
+                            let reps = 0, sets = 0;
+                            workouts.forEach(w => {
+                                const wDate = new Date(w.date);
+                                // Set the wDate to the first day of its month for comparison
+                                const wMonthStart = new Date(wDate.getFullYear(), wDate.getMonth(), 1); 
+                                
+                                if (wMonthStart.getTime() === ms.getTime()) {
+                                    const e = w.exercises.find(e => e.exerciseId === ex.id);
+                                    if (e) {
+                                        sets += e.sets.length;
+                                        reps += e.sets.reduce((sum, set) => sum + (set.reps || 0), 0);
+                                    }
+                                }
+                            });
+                            
+                            dataPoints.push({
+                                label: d.toLocaleDateString('ru-RU', { month: 'short', year: numMonths > 12 ? '2-digit' : undefined }),
+                                reps: reps,
+                                sets: sets
+                            });
+                        }
+                    }
+                    return dataPoints;
+                }
+
+                // Helper to render a chart card
+                const chartInitCalls = [];
+
+                function renderChartCard(id, days, label, color, type, periodType) {
+                    const data = generateChartData(days, periodType);
+                    const totalReps = data.reduce((s, d) => s + d.reps, 0);
+                    const totalSets = data.reduce((s, d) => s + d.sets, 0);
+
+                    let chartData = data.map(d => d.reps);
+                    let chartLabels = data.map(d => d.label);
+
+                    let displayReps = ex.type === 'distance' ? totalReps.toFixed(1) : Math.round(totalReps);
+                    
+                    let cardHTML = `<div class="card" id="card-${id}">
+                        <h3 style="margin-bottom: 12px;">${label}</h3>
+                        <canvas id="${id}"></canvas> 
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: center;"> 
+                                <div>
+                                    <p style="font-size: 12px; color: #666;">Всего ${ul.toLowerCase()}</p> 
+                                    <p style="font-size: 18px; font-weight: bold; color: ${color};">${displayReps} ${us}</p>
+                                </div> 
+                                <div>
+                                    <p style="font-size: 12px; color: #666;">Всего подходов</p> 
+                                    <p style="font-size: 18px; font-weight: bold; color: ${color};">${totalSets}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                    
+                    h += cardHTML;
+                    
+                    // Collect chart rendering instructions
+                    chartInitCalls.push({ id: id, data: chartData, labels: chartLabels, type: type, color: color });
+                }
+                
+                // 7 days (Bar)
+                renderChartCard('wc7', 7, 'Объем: Последние 7 дней', '#3b82f6', 'bar', 'day');
+                // 30 days (Line)
+                renderChartCard('wc30', 30, 'Объем: Последние 30 дней', '#8b5cf6', 'line', 'day');
+                // 90 days (Bar, Month view for compactness) - NEW
+                renderChartCard('wc90', 90, 'Объем: Последние 3 месяца', '#f59e0b', 'bar', 'month');
+                // 180 days (Line, Month view for compactness) - NEW
+                renderChartCard('wc180', 180, 'Объем: Последние 6 месяцев', '#ef4444', 'line', 'month');
+                // 365 days (Bar, Month view) - existing 12 months logic
+                renderChartCard('wc365', 365, 'Объем: Последний Год', '#10b981', 'bar', 'month');
+
+                // Execute chart rendering
+                h += `<script>
+                    setTimeout(() => {
+                        ${chartInitCalls.map(c => 
+                            `drawChart('${c.id}', ${JSON.stringify(c.data)}, ${JSON.stringify(c.labels)}, '${c.type}', '${c.color}');`
+                        ).join('\n')}
+                    }, 100);
+                </script>`;
+            }
+            return h;
+        }
+
+        function renderExercises() { let h = `<div class="top-bar"><button class="back-btn" onclick="go('home')">←</button><h2>Упражнения</h2><div style="width: 36px;"></div></div> <div class="card"><input type="text" id="newEx" placeholder="Название упражнения" style="margin-bottom: 12px;"> <select id="exType" style="margin-bottom: 12px;"> <option value="reps">Повторения</option> <option value="weight">Вес + повто...
+...

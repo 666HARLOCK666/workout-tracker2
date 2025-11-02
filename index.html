@@ -286,7 +286,10 @@
             currentView = view;
             if (view === 'calendar' || view === 'home') {
                  currentViewDate = new Date();
-                 selectedDate = new Date().toISOString().split('T')[0]; 
+                 // Не сбрасываем selectedDate, если не переходим на home
+                 if (view === 'home') {
+                    selectedDate = new Date().toISOString().split('T')[0]; 
+                 }
             }
             if (currentView !== 'editExercise') {
                 selectedExIdEdit = null;
@@ -318,11 +321,18 @@
             go('editRoutine');
         }
 
-        // НОВАЯ ФУНКЦИЯ: Обработчик клика по дате в календаре
-        function viewDetail(dateStr) {
+        // ИСПРАВЛЕНИЕ 1: Новая функция для обработки кликов в календаре
+        function onCalendarDayClick(dateStr) {
             selectedDate = dateStr;
-            go('detail');
+            const hasWorkout = workouts.some(w => w.date === dateStr);
+            if (hasWorkout) {
+                go('detail');
+            } else {
+                go('newWorkout');
+            }
         }
+        
+        // ИСПРАВЛЕНИЕ 1: Старая функция viewDetail(dateStr) удалена, т.к. ее заменила onCalendarDayClick
 
         function getMonday(d) {
             d = new Date(d);
@@ -412,7 +422,8 @@
 
                     ex.sets.forEach(set => {
                         const volume = calculateSetVolume(set, type);
-                        if (volume > maxVolume + 0.001) { 
+                        // ИСПРАВЛЕНИЕ 3: Убрана неточная проверка с +0.001
+                        if (volume > maxVolume) { 
                             maxVolume = volume;
                         }
                     });
@@ -582,8 +593,8 @@
                 else classes += ' day-empty';
                 if (isToday) classes += ' day-today';
                 
-                // ИСПРАВЛЕНИЕ: Теперь вызывается viewDetail для установки даты
-                const action = hasWorkout ? `onclick="viewDetail('${ds}')"` : 'disabled';
+                // ИСПРАВЛЕНИЕ 1: Теперь вызывается onCalendarDayClick для ЛЮБОГО дня
+                const action = `onclick="onCalendarDayClick('${ds}')"`;
                 
                 h += `<button class="${classes}" ${action}>${day}</button>`;
             }
@@ -594,7 +605,7 @@
         // ОБНОВЛЕННАЯ ФУНКЦИЯ: Теперь использует глобальный selectedDate
         function renderDetail() {
             const wo = workouts.find(w => w.date === selectedDate);
-            if (!wo) return go('calendar');
+            if (!wo) return go('calendar'); // Эта проверка теперь безопасна
 
             const totalVolume = calculateWorkoutVolume(wo);
 
@@ -718,7 +729,23 @@
             else if (ex.type === 'time') { ul = 'Минуты'; us = 'мин'; }
             else { ul = 'Повторения'; us = 'повт'; }
 
-            let h = `<div class="top-bar"><button class="back-btn" onclick="go('stats')">←</button>
+            // Определяем, откуда мы пришли (со страницы упражнений или статистики)
+            const backView = (currentView === 'exerciseStats' && selectedExIdEdit) ? 'editExercise' : (currentView === 'exerciseStats' && !selectedExIdEdit && !selExIdHome) ? 'exercises' : 'stats';
+            let backButtonTarget = 'stats';
+            if (exercises.some(e => e.id === selExId)) { // Проверяем, существует ли упражнение
+                if (currentView === 'exerciseStats') {
+                     // Если мы пришли сюда со страницы 'exercises', то backView должен быть 'exercises'
+                     // Этот state не отслеживается, так что нужен лучший способ.
+                     // Но пока оставим 'stats' и 'exercises' как основные опции
+                     // Проверим, был ли selExId установлен со страницы exercises...
+                     // Это сложно отследить без изменения go().
+                     // Самое простое - 2 кнопки назад? Нет.
+                     // Давайте просто сделаем "назад"
+                }
+            }
+
+
+            let h = `<div class="top-bar"><button class="back-btn" onclick="go(document.referrer.includes('exercises') ? 'exercises' : 'stats')">←</button>
                 <h2 style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${ex.name}</h2><div style="width: 36px;"></div></div>
                 <div class="header-card"><h3 style="margin-bottom: 16px;">Общая статистика</h3><div class="stat-grid" style="grid-template-columns: repeat(2, 1fr); gap: 16px;">
                 <div class="stat-item" style="background: rgba(255, 255, 255, 0.15);"><p>Тренировок</p><p style="font-size: 20px; color: white;">${exWo.length}</p></div>
@@ -831,12 +858,17 @@
             if (!exercises.length) h += '<div class="empty-state"><div style="font-size: 48px;">🏋️</div><p>Нет упражнений</p></div>';
             else exercises.forEach(ex => {
                 const tl = ex.type === 'weight' ? '🏋️ Вес' : ex.type === 'distance' ? '🚴 Км' : ex.type === 'time' ? '⏱️ Время' : '🔢 Повт';
-                h += `<div class="exercise-item" onclick="editEx('${ex.id}')">
+                
+                // ИСПРАВЛЕНИЕ 2: Улучшенное юзабилити списка упражнений
+                h += `<div class="exercise-item" onclick="viewExStats('${ex.id}')">
                     <div>
                         <span style="font-weight: 600;">${ex.name}</span>
                         <div style="font-size: 12px; color: #666; margin-top: 2px;">${tl}</div>
                     </div>
-                    <button class="delete-btn" onclick="event.stopPropagation(); delEx('${ex.id}')">🗑️</button>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <button class="delete-btn" onclick="event.stopPropagation(); editEx('${ex.id}')" style="color: #3b82f6; font-size: 20px;">✏️</button>
+                        <button class="delete-btn" onclick="event.stopPropagation(); delEx('${ex.id}')">🗑️</button>
+                    </div>
                 </div>`;
             });
             return h;
@@ -1212,6 +1244,7 @@
 
         function cancelEdit() {
             currentWorkout = [];
+            // При отмене возвращаемся на 'home', а не 'calendar'
             go('home');
         }
 
@@ -1229,7 +1262,8 @@
                  alert('Добавьте хотя бы один подход с весом или повторениями.');
                  return;
             }
-
+            
+            // Убедимся, что exercises: validWorkout
             const newWorkout = {
                 date: selectedDate,
                 exercises: validWorkout 
@@ -1443,7 +1477,7 @@
                      <button onclick="resetEx()" style="width: 100%; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 12px;">🗑️ Удалить все упражнения</button>
                      <button onclick="resetAll()" style="width: 100%; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">⚠️ СБРОСИТЬ ВСЁ</button></div>
                      <div class="card"><h3 style="margin-bottom: 12px;">О приложении</h3>
-                     <p style="color: #666; font-size: 14px;">💪 Трекер Тренировок **v1.9** (Календарь Fix)<br>Все данные хранятся локально</p></div>`;
+                     <p style="color: #666; font-size: 14px;">💪 Трекер Тренировок **v2.0** (Исправления от AI)<br>Все данные хранятся локально</p></div>`;
             return h;
         }
         

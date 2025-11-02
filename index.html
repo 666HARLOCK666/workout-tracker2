@@ -1050,7 +1050,8 @@
                 <button class="btn btn-orange" style="width: 100%; padding: 12px; margin-top: 12px; background: #ef4444;" onclick="delRoutine('${rt.id}')">🗑️ Удалить шаблон</button>
             </div>`;
 
-            h += `<div id="addExModal" class="card hide" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 400px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); padding: 20px;">
+            // ИСПРАВЛЕНИЕ v2.1: Добавлен "background: white;"
+            h += `<div id="addExModal" class="card hide" style="background: white; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 400px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); padding: 20px;">
                 <h3 style="margin-bottom: 16px;">Выберите упражнение</h3>
                 <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 8px;">`;
             
@@ -1176,7 +1177,8 @@
             </div>`;
 
             // Модальное окно для добавления упражнения
-            h += `<div id="addExModal" class="card hide" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 400px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); padding: 20px;">
+            // ИСПРАВЛЕНИЕ v2.1: Добавлен "background: white;"
+            h += `<div id="addExModal" class="card hide" style="background: white; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 400px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); padding: 20px;">
                 <h3 style="margin-bottom: 16px;">Выберите упражнение</h3>
                 <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 8px;">`;
             
@@ -1477,7 +1479,7 @@
                      <button onclick="resetEx()" style="width: 100%; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 12px;">🗑️ Удалить все упражнения</button>
                      <button onclick="resetAll()" style="width: 100%; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">⚠️ СБРОСИТЬ ВСЁ</button></div>
                      <div class="card"><h3 style="margin-bottom: 12px;">О приложении</h3>
-                     <p style="color: #666; font-size: 14px;">💪 Трекер Тренировок **v2.0** (Исправления от AI)<br>Все данные хранятся локально</p></div>`;
+                     <p style="color: #666; font-size: 14px;">💪 Трекер Тренировок **v2.1** (UI Fix от AI)<br>Все данные хранятся локально</p></div>`;
             return h;
         }
         

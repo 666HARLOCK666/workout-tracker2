@@ -150,12 +150,91 @@
         .empty-state { text-align: center; padding: 40px 20px; color: #999; }
         .hide { display: none; }
         canvas { max-width: 100%; height: 250px !important; }
+
+        /* --- НОВЫЕ СТИЛИ ДЛЯ УВЕДОМЛЕНИЙ --- */
+        #toast-container {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            right: 16px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 400px; /* Ограничим ширину на ПК */
+            margin: 0 auto; /* Центрируем */
+        }
+        .toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px;
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+            animation: toast-in 0.3s ease-out;
+            width: 100%;
+        }
+        @keyframes toast-in {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .toast-content {
+            flex-grow: 1;
+        }
+        .toast-title {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .toast-message {
+            font-size: 13px;
+            opacity: 0.9;
+            word-break: break-word;
+        }
+        .toast-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+            line-height: 1.2;
+        }
+        .toast-close {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            font-size: 20px;
+            line-height: 1;
+            padding: 0;
+        }
+
+        /* Цвета по типам (вдохновлено скриншотом) */
+        .toast-info {
+            background: rgba(59, 130, 246, 0.9); /* Синий */
+        }
+        .toast-success {
+            background: rgba(16, 185, 129, 0.9); /* Зеленый */
+        }
+        .toast-error {
+            background: rgba(239, 68, 68, 0.9); /* Красный */
+        }
+        /* --- КОНЕЦ СТИЛЕЙ ДЛЯ УВЕДОМЛЕНИЙ --- */
+
     </style>
 </head>
 <body>
     <div class="container">
         <div id="view"></div>
     </div>
+    
+    <div id="toast-container"></div>
+    
     <script>
         let exercises = [];
         let workouts = [];
@@ -168,6 +247,52 @@
         let selExIdHome = null; 
         let selectedExIdEdit = null; 
         let selectedRoutineIdEdit = null; 
+
+        // --- НОВАЯ ФУНКЦИЯ ДЛЯ УВЕДОМЛЕНИЙ ---
+        function showToast(title, message, type = 'info', duration = 3000) {
+            const container = document.getElementById('toast-container');
+            
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            // Иконки как на вашем скриншоте
+            let icon = '💬'; // Info
+            if (type === 'success') icon = '✅'; // Success
+            if (type === 'error') icon = '🗑️'; // Error/Delete
+
+            toast.innerHTML = `
+                <div class="toast-icon">${icon}</div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            
+            // Добавляем тост в контейнер
+            container.appendChild(toast);
+            
+            // Удаляем тост через {duration}
+            setTimeout(() => {
+                toast.style.animation = 'toast-out 0.3s ease-in forwards';
+                toast.addEventListener('animationend', () => toast.remove());
+            }, duration);
+            
+            // Добавим анимацию исчезновения (опционально, но красиво)
+            if (!document.getElementById('toast-animation-style')) {
+                const style = document.createElement('style');
+                style.id = 'toast-animation-style';
+                style.innerHTML = `
+                    @keyframes toast-out {
+                        from { opacity: 1; transform: translateY(0); }
+                        to { opacity: 0; transform: translateY(-20px); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+        // --- КОНЕЦ ФУНКЦИИ ДЛЯ УВЕДОМЛЕНИЙ ---
+
 
         if (window.Telegram?.WebApp) {
             Telegram.WebApp.ready();
@@ -218,7 +343,8 @@
             a.click();
             URL.revokeObjectURL(url);
             
-            alert('✅ Данные экспортированы!');
+            // ЗАМЕНА ALERT
+            showToast('Экспорт', 'Данные успешно экспортированы!', 'success');
         }
 
         function importData() {
@@ -248,10 +374,12 @@
                         routines = importedData.routines;
 
                         save();
-                        alert('✅ Данные успешно импортированы!');
+                        // ЗАМЕНА ALERT
+                        showToast('Импорт', 'Данные успешно импортированы!', 'success');
                         go('home'); 
                     } catch (error) {
-                        alert('❌ Ошибка импорта: ' + error.message);
+                        // ЗАМЕНА ALERT
+                        showToast('Ошибка импорта', error.message, 'error', 5000);
                         console.error('Import Error:', error);
                     }
                 };
@@ -321,7 +449,6 @@
             go('editRoutine');
         }
 
-        // ИСПРАВЛЕНИЕ 1: Новая функция для обработки кликов в календаре
         function onCalendarDayClick(dateStr) {
             selectedDate = dateStr;
             const hasWorkout = workouts.some(w => w.date === dateStr);
@@ -332,8 +459,6 @@
             }
         }
         
-        // ИСПРАВЛЕНИЕ 1: Старая функция viewDetail(dateStr) удалена, т.к. ее заменила onCalendarDayClick
-
         function getMonday(d) {
             d = new Date(d);
             const day = d.getDay();
@@ -422,7 +547,6 @@
 
                     ex.sets.forEach(set => {
                         const volume = calculateSetVolume(set, type);
-                        // ИСПРАВЛЕНИЕ 3: Убрана неточная проверка с +0.001
                         if (volume > maxVolume) { 
                             maxVolume = volume;
                         }
@@ -593,7 +717,6 @@
                 else classes += ' day-empty';
                 if (isToday) classes += ' day-today';
                 
-                // ИСПРАВЛЕНИЕ 1: Теперь вызывается onCalendarDayClick для ЛЮБОГО дня
                 const action = `onclick="onCalendarDayClick('${ds}')"`;
                 
                 h += `<button class="${classes}" ${action}>${day}</button>`;
@@ -602,10 +725,9 @@
             return h;
         }
 
-        // ОБНОВЛЕННАЯ ФУНКЦИЯ: Теперь использует глобальный selectedDate
         function renderDetail() {
             const wo = workouts.find(w => w.date === selectedDate);
-            if (!wo) return go('calendar'); // Эта проверка теперь безопасна
+            if (!wo) return go('calendar');
 
             const totalVolume = calculateWorkoutVolume(wo);
 
@@ -729,18 +851,10 @@
             else if (ex.type === 'time') { ul = 'Минуты'; us = 'мин'; }
             else { ul = 'Повторения'; us = 'повт'; }
 
-            // Определяем, откуда мы пришли (со страницы упражнений или статистики)
             const backView = (currentView === 'exerciseStats' && selectedExIdEdit) ? 'editExercise' : (currentView === 'exerciseStats' && !selectedExIdEdit && !selExIdHome) ? 'exercises' : 'stats';
             let backButtonTarget = 'stats';
-            if (exercises.some(e => e.id === selExId)) { // Проверяем, существует ли упражнение
+            if (exercises.some(e => e.id === selExId)) { 
                 if (currentView === 'exerciseStats') {
-                     // Если мы пришли сюда со страницы 'exercises', то backView должен быть 'exercises'
-                     // Этот state не отслеживается, так что нужен лучший способ.
-                     // Но пока оставим 'stats' и 'exercises' как основные опции
-                     // Проверим, был ли selExId установлен со страницы exercises...
-                     // Это сложно отследить без изменения go().
-                     // Самое простое - 2 кнопки назад? Нет.
-                     // Давайте просто сделаем "назад"
                 }
             }
 
@@ -859,7 +973,6 @@
             else exercises.forEach(ex => {
                 const tl = ex.type === 'weight' ? '🏋️ Вес' : ex.type === 'distance' ? '🚴 Км' : ex.type === 'time' ? '⏱️ Время' : '🔢 Повт';
                 
-                // ИСПРАВЛЕНИЕ 2: Улучшенное юзабилити списка упражнений
                 h += `<div class="exercise-item" onclick="viewExStats('${ex.id}')">
                     <div>
                         <span style="font-weight: 600;">${ex.name}</span>
@@ -903,7 +1016,8 @@
             const newType = document.getElementById('editExType').value;
 
             if (!newName) {
-                alert('Название не может быть пустым');
+                // ЗАМЕНА ALERT
+                showToast('Ошибка', 'Название не может быть пустым', 'error');
                 return;
             }
 
@@ -917,7 +1031,6 @@
                 });
             });
 
-            // Обновляем имя в шаблонах
             routines.forEach(rt => {
                 rt.exercises.forEach(rtEx => {
                     if (rtEx.exerciseId === selectedExIdEdit) {
@@ -928,16 +1041,22 @@
 
             save();
             selectedExIdEdit = null;
-            alert('✅ Сохранено');
+            // ЗАМЕНА ALERT
+            showToast('Успех', 'Упражнение сохранено', 'success');
             go('exercises');
         }
 
         function delEx(id, isEditView = false) {
+            // ОСТАВЛЯЕМ CONFIRM
             if (confirm('Удалить упражнение? Это также удалит его из всех тренировок и шаблонов!')) {
                 exercises = exercises.filter(e => e.id !== id);
                 workouts = workouts.map(wo => ({ ...wo, exercises: wo.exercises.filter(ex => ex.exerciseId !== id) })).filter(wo => wo.exercises.length > 0);
-                routines = routines.map(rt => ({ ...rt, exercises: rt.exercises.filter(ex => ex.exerciseId !== id) })).filter(rt => rt.exercises.length > 0); // Удаление из шаблонов
+                routines = routines.map(rt => ({ ...rt, exercises: rt.exercises.filter(ex => ex.exerciseId !== id) })).filter(rt => rt.exercises.length > 0);
                 save();
+                
+                // Добавим уведомление об удалении
+                showToast('Удалено', 'Упражнение было удалено', 'error');
+
                 if (isEditView) {
                     selectedExIdEdit = null;
                     go('exercises');
@@ -958,7 +1077,11 @@
                     createdAt: new Date().toISOString()
                 });
                 save();
+                // Уведомление о добавлении
+                showToast('Успех', `Упражнение "${inp.value.trim()}" добавлено`, 'success');
                 render();
+            } else {
+                showToast('Ошибка', 'Введите название упражнения', 'error');
             }
         }
 
@@ -1001,17 +1124,22 @@
                     exercises: [] 
                 });
                 save();
+                showToast('Успех', `Шаблон "${name}" создан`, 'success');
                 inp.value = '';
                 render();
             } else {
-                alert('Введите название шаблона.');
+                // ЗАМЕНА ALERT
+                showToast('Ошибка', 'Введите название шаблона', 'error');
             }
         }
 
         function delRoutine(id) {
+            // ОСТАВЛЯЕМ CONFIRM
             if (confirm('Удалить шаблон?')) {
+                const rtName = routines.find(rt => rt.id === id)?.name || 'Шаблон';
                 routines = routines.filter(rt => rt.id !== id);
                 save();
+                showToast('Удалено', `Шаблон "${rtName}" удален`, 'error');
                 render();
             }
         }
@@ -1098,7 +1226,8 @@
             const newName = document.getElementById('editRoutineName').value.trim();
 
             if (!newName) {
-                alert('Название шаблона не может быть пустым');
+                // ЗАМЕНА ALERT
+                showToast('Ошибка', 'Название шаблона не может быть пустым', 'error');
                 return;
             }
 
@@ -1114,7 +1243,8 @@
             save();
             currentWorkout = [];
             selectedRoutineIdEdit = null;
-            alert('✅ Шаблон сохранен');
+            // ЗАМЕНА ALERT
+            showToast('Успех', 'Шаблон сохранен', 'success');
             go('routines');
         }
 
@@ -1203,6 +1333,7 @@
         }
 
         function loadRoutine(routineId) {
+            // ОСТАВЛЯЕМ CONFIRM
             if (currentWorkout.length > 0) {
                 if (!confirm('Текущая тренировка будет очищена. Продолжить?')) {
                     return;
@@ -1216,7 +1347,8 @@
                     exerciseName: ex.exerciseName,
                     sets: [] 
                 })); 
-                alert(`✅ Шаблон "${routine.name}" загружен.`);
+                // ЗАМЕНА ALERT
+                showToast('Успех', `Шаблон "${routine.name}" загружен`, 'success');
                 render();
             }
         }
@@ -1246,13 +1378,13 @@
 
         function cancelEdit() {
             currentWorkout = [];
-            // При отмене возвращаемся на 'home', а не 'calendar'
             go('home');
         }
 
         function saveWorkout() {
             if (currentWorkout.length === 0) {
-                alert('Добавьте хотя бы одно упражнение.');
+                // ЗАМЕНА ALERT
+                showToast('Ошибка', 'Добавьте хотя бы одно упражнение', 'error');
                 return;
             }
 
@@ -1261,11 +1393,11 @@
             );
 
             if (validWorkout.length === 0) {
-                 alert('Добавьте хотя бы один подход с весом или повторениями.');
+                 // ЗАМЕНА ALERT
+                 showToast('Ошибка', 'Добавьте хотя бы один подход с весом или повторениями', 'error');
                  return;
             }
             
-            // Убедимся, что exercises: validWorkout
             const newWorkout = {
                 date: selectedDate,
                 exercises: validWorkout 
@@ -1282,7 +1414,8 @@
 
             save();
             currentWorkout = [];
-            alert('✅ Тренировка сохранена!');
+            // ЗАМЕНА ALERT
+            showToast('Успех', 'Тренировка сохранена!', 'success');
             go('home');
         }
 
@@ -1402,7 +1535,6 @@
             
             currentWorkout[exIndex].sets.splice(index, 1);
             
-            // Re-number sets
             currentWorkout[exIndex].sets.forEach((set, i) => {
                 set.setNumber = i + 1;
             });
@@ -1479,40 +1611,44 @@
                      <button onclick="resetEx()" style="width: 100%; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 12px;">🗑️ Удалить все упражнения</button>
                      <button onclick="resetAll()" style="width: 100%; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">⚠️ СБРОСИТЬ ВСЁ</button></div>
                      <div class="card"><h3 style="margin-bottom: 12px;">О приложении</h3>
-                     <p style="color: #666; font-size: 14px;">💪 Трекер Тренировок **v2.1** (UI Fix от AI)<br>Все данные хранятся локально</p></div>`;
+                     <p style="color: #666; font-size: 14px;">💪 Трекер Тренировок **v2.2** (Toast UI)<br>Все данные хранятся локально</p></div>`;
             return h;
         }
         
         function resetRoutines() {
+            // ОСТАВЛЯЕМ CONFIRM
             if (confirm('Удалить ВСЕ шаблоны?')) {
                 routines = [];
                 save();
-                alert('✅ Удалено');
+                showToast('Удалено', 'Все шаблоны удалены', 'error');
                 render();
             }
         }
 
         function resetWo() {
+            // ОСТАВЛЯЕМ CONFIRM
             if (confirm('Удалить ВСЕ тренировки?')) {
                 workouts = [];
                 save();
-                alert('✅ Удалено');
+                showToast('Удалено', 'Все тренировки удалены', 'error');
                 render();
             }
         }
 
         function resetEx() {
+            // ОСТАВЛЯЕМ CONFIRM
             if (confirm('Удалить ВСЕ упражнения, тренировки и шаблоны?')) {
                 exercises = [];
                 workouts = [];
                 routines = [];
                 save();
-                alert('✅ Удалено');
+                showToast('Удалено', 'Все упражнения, тренировки и шаблоны удалены', 'error');
                 render();
             }
         }
 
         function resetAll() {
+            // ОСТАВЛЯЕМ CONFIRM
             if (confirm('⚠️ УДАЛИТЬ ВСЕ ДАННЫЕ?')) {
                 if (confirm('Точно? Последнее предупреждение!')) {
                     exercises = [];
@@ -1520,7 +1656,7 @@
                     routines = [];
                     currentWorkout = [];
                     localStorage.clear();
-                    alert('🔥 Все данные сброшены. Перезагрузите страницу.');
+                    showToast('Сброс', 'Все данные сброшены. Перезагрузите страницу.', 'error', 5000);
                     render();
                 }
             }

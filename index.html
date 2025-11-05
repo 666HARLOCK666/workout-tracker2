@@ -151,7 +151,7 @@
         .hide { display: none; }
         canvas { max-width: 100%; height: 250px !important; }
 
-        /* --- НОВЫЕ СТИЛИ ДЛЯ УВЕДОМЛЕНИЙ --- */
+        /* --- СТИЛИ ДЛЯ УВЕДОМЛЕНИЙ --- */
         #toast-container {
             position: fixed;
             top: 16px;
@@ -161,8 +161,8 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
-            max-width: 400px; /* Ограничим ширину на ПК */
-            margin: 0 auto; /* Центрируем */
+            max-width: 400px;
+            margin: 0 auto;
         }
         .toast {
             display: flex;
@@ -213,18 +213,16 @@
             line-height: 1;
             padding: 0;
         }
-
-        /* Цвета по типам (вдохновлено скриншотом) */
         .toast-info {
-            background: rgba(59, 130, 246, 0.9); /* Синий */
+            background: rgba(59, 130, 246, 0.9);
         }
         .toast-success {
-            background: rgba(16, 185, 129, 0.9); /* Зеленый */
+            background: rgba(16, 185, 129, 0.9);
         }
         .toast-error {
-            background: rgba(239, 68, 68, 0.9); /* Красный */
+            background: rgba(239, 68, 68, 0.9);
         }
-        /* --- КОНЕЦ СТИЛЕЙ ДЛЯ УВЕДОМЛЕНИЙ --- */
+        /* --- КОНЕЦ СТИЛЕЙ --- */
 
     </style>
 </head>
@@ -248,17 +246,13 @@
         let selectedExIdEdit = null; 
         let selectedRoutineIdEdit = null; 
 
-        // --- НОВАЯ ФУНКЦИЯ ДЛЯ УВЕДОМЛЕНИЙ ---
         function showToast(title, message, type = 'info', duration = 3000) {
             const container = document.getElementById('toast-container');
-            
             const toast = document.createElement('div');
             toast.className = `toast toast-${type}`;
-            
-            // Иконки как на вашем скриншоте
-            let icon = '💬'; // Info
-            if (type === 'success') icon = '✅'; // Success
-            if (type === 'error') icon = '🗑️'; // Error/Delete
+            let icon = '💬';
+            if (type === 'success') icon = '✅';
+            if (type === 'error') icon = '🗑️';
 
             toast.innerHTML = `
                 <div class="toast-icon">${icon}</div>
@@ -268,17 +262,13 @@
                 </div>
                 <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
             `;
-            
-            // Добавляем тост в контейнер
             container.appendChild(toast);
             
-            // Удаляем тост через {duration}
             setTimeout(() => {
                 toast.style.animation = 'toast-out 0.3s ease-in forwards';
                 toast.addEventListener('animationend', () => toast.remove());
             }, duration);
             
-            // Добавим анимацию исчезновения (опционально, но красиво)
             if (!document.getElementById('toast-animation-style')) {
                 const style = document.createElement('style');
                 style.id = 'toast-animation-style';
@@ -291,8 +281,6 @@
                 document.head.appendChild(style);
             }
         }
-        // --- КОНЕЦ ФУНКЦИИ ДЛЯ УВЕДОМЛЕНИЙ ---
-
 
         if (window.Telegram?.WebApp) {
             Telegram.WebApp.ready();
@@ -339,11 +327,8 @@
             a.href = url;
             const date = new Date().toISOString().split('T')[0];
             a.download = `workout_tracker_data_${date}.json`;
-            
             a.click();
             URL.revokeObjectURL(url);
-            
-            // ЗАМЕНА ALERT
             showToast('Экспорт', 'Данные успешно экспортированы!', 'success');
         }
 
@@ -351,34 +336,26 @@
             if (!confirm('Внимание! Импорт заменит ВСЕ текущие данные (упражнения, тренировки и шаблоны). Продолжить?')) {
                 return;
             }
-
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = '.json';
-            
             input.onchange = function(event) {
                 const file = event.target.files[0];
                 if (!file) return;
-
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     try {
                         const importedData = JSON.parse(e.target.result);
-                        
                         if (!importedData.exercises || !importedData.workouts || !importedData.routines) {
                             throw new Error("Неверный формат файла данных. Должен содержать exercises, workouts и routines.");
                         }
-                        
                         exercises = importedData.exercises;
                         workouts = importedData.workouts;
                         routines = importedData.routines;
-
                         save();
-                        // ЗАМЕНА ALERT
                         showToast('Импорт', 'Данные успешно импортированы!', 'success');
                         go('home'); 
                     } catch (error) {
-                        // ЗАМЕНА ALERT
                         showToast('Ошибка импорта', error.message, 'error', 5000);
                         console.error('Import Error:', error);
                     }
@@ -414,7 +391,6 @@
             currentView = view;
             if (view === 'calendar' || view === 'home') {
                  currentViewDate = new Date();
-                 // Не сбрасываем selectedDate, если не переходим на home
                  if (view === 'home') {
                     selectedDate = new Date().toISOString().split('T')[0]; 
                  }
@@ -636,7 +612,6 @@
             if (!ex) { selExIdHome = null; return go('home'); } 
             const eBase = exercises.find(e => e.id === ex.exerciseId);
             const t = eBase ? eBase.type : 'reps';
-            
             const maxVol = getMaxSetVolume(ex.exerciseId);
 
             let h = `<div class="top-bar">
@@ -716,9 +691,7 @@
                 if (hasWorkout) classes += ' day-workout';
                 else classes += ' day-empty';
                 if (isToday) classes += ' day-today';
-                
                 const action = `onclick="onCalendarDayClick('${ds}')"`;
-                
                 h += `<button class="${classes}" ${action}>${day}</button>`;
             }
             h += '</div></div>';
@@ -728,7 +701,6 @@
         function renderDetail() {
             const wo = workouts.find(w => w.date === selectedDate);
             if (!wo) return go('calendar');
-
             const totalVolume = calculateWorkoutVolume(wo);
 
             let h = `<div class="top-bar">
@@ -757,7 +729,6 @@
 
                 let setsHTML = '';
                 const maxVol = getMaxSetVolume(ex.exerciseId); 
-                
                 ex.sets.forEach(set => {
                     const setVol = calculateSetVolume(set, t);
                     const isPR = (setVol > 0 && Math.abs(setVol - maxVol) < 0.01); 
@@ -787,11 +758,9 @@
         function drawChart(id, data, labels, type, color) {
             const ctx = document.getElementById(id);
             if (!ctx) return;
-            
             if (window[id + 'Chart']) {
                 window[id + 'Chart'].destroy();
             }
-
             window[id + 'Chart'] = new Chart(ctx, {
                 type: type, 
                 data: {
@@ -1016,7 +985,6 @@
             const newType = document.getElementById('editExType').value;
 
             if (!newName) {
-                // ЗАМЕНА ALERT
                 showToast('Ошибка', 'Название не может быть пустым', 'error');
                 return;
             }
@@ -1041,20 +1009,16 @@
 
             save();
             selectedExIdEdit = null;
-            // ЗАМЕНА ALERT
             showToast('Успех', 'Упражнение сохранено', 'success');
             go('exercises');
         }
 
         function delEx(id, isEditView = false) {
-            // ОСТАВЛЯЕМ CONFIRM
             if (confirm('Удалить упражнение? Это также удалит его из всех тренировок и шаблонов!')) {
                 exercises = exercises.filter(e => e.id !== id);
                 workouts = workouts.map(wo => ({ ...wo, exercises: wo.exercises.filter(ex => ex.exerciseId !== id) })).filter(wo => wo.exercises.length > 0);
                 routines = routines.map(rt => ({ ...rt, exercises: rt.exercises.filter(ex => ex.exerciseId !== id) })).filter(rt => rt.exercises.length > 0);
                 save();
-                
-                // Добавим уведомление об удалении
                 showToast('Удалено', 'Упражнение было удалено', 'error');
 
                 if (isEditView) {
@@ -1077,7 +1041,6 @@
                     createdAt: new Date().toISOString()
                 });
                 save();
-                // Уведомление о добавлении
                 showToast('Успех', `Упражнение "${inp.value.trim()}" добавлено`, 'success');
                 render();
             } else {
@@ -1128,13 +1091,11 @@
                 inp.value = '';
                 render();
             } else {
-                // ЗАМЕНА ALERT
                 showToast('Ошибка', 'Введите название шаблона', 'error');
             }
         }
 
         function delRoutine(id) {
-            // ОСТАВЛЯЕМ CONFIRM
             if (confirm('Удалить шаблон?')) {
                 const rtName = routines.find(rt => rt.id === id)?.name || 'Шаблон';
                 routines = routines.filter(rt => rt.id !== id);
@@ -1178,7 +1139,6 @@
                 <button class="btn btn-orange" style="width: 100%; padding: 12px; margin-top: 12px; background: #ef4444;" onclick="delRoutine('${rt.id}')">🗑️ Удалить шаблон</button>
             </div>`;
 
-            // ИСПРАВЛЕНИЕ v2.1: Добавлен "background: white;"
             h += `<div id="addExModal" class="card hide" style="background: white; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 400px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); padding: 20px;">
                 <h3 style="margin-bottom: 16px;">Выберите упражнение</h3>
                 <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 8px;">`;
@@ -1226,7 +1186,6 @@
             const newName = document.getElementById('editRoutineName').value.trim();
 
             if (!newName) {
-                // ЗАМЕНА ALERT
                 showToast('Ошибка', 'Название шаблона не может быть пустым', 'error');
                 return;
             }
@@ -1243,7 +1202,6 @@
             save();
             currentWorkout = [];
             selectedRoutineIdEdit = null;
-            // ЗАМЕНА ALERT
             showToast('Успех', 'Шаблон сохранен', 'success');
             go('routines');
         }
@@ -1306,8 +1264,6 @@
                 <button class="btn btn-blue" style="width: 100%; padding: 12px; margin-top: 16px;" onclick="document.getElementById('addExModal').classList.remove('hide')">Добавить упражнение</button>
             </div>`;
 
-            // Модальное окно для добавления упражнения
-            // ИСПРАВЛЕНИЕ v2.1: Добавлен "background: white;"
             h += `<div id="addExModal" class="card hide" style="background: white; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 400px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); padding: 20px;">
                 <h3 style="margin-bottom: 16px;">Выберите упражнение</h3>
                 <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 8px;">`;
@@ -1333,13 +1289,11 @@
         }
 
         function loadRoutine(routineId) {
-            // ОСТАВЛЯЕМ CONFIRM
             if (currentWorkout.length > 0) {
                 if (!confirm('Текущая тренировка будет очищена. Продолжить?')) {
                     return;
                 }
             }
-
             const routine = routines.find(rt => rt.id === routineId);
             if (routine) {
                 currentWorkout = routine.exercises.map(ex => ({
@@ -1347,16 +1301,14 @@
                     exerciseName: ex.exerciseName,
                     sets: [] 
                 })); 
-                // ЗАМЕНА ALERT
                 showToast('Успех', `Шаблон "${routine.name}" загружен`, 'success');
                 render();
             }
         }
 
+        // --- ИЗМЕНЕНИЕ v2.3 ---
         function renderEditWorkout() {
-            const wo = workouts.find(w => w.date === selectedDate);
-            if (!wo) return go('calendar'); 
-            currentWorkout = JSON.parse(JSON.stringify(wo.exercises)); 
+            // Больше не нужно ничего загружать, currentWorkout уже готов
             return renderNewWorkout(); 
         }
 
@@ -1365,15 +1317,25 @@
             const wo = workouts.find(w => w.date === todayDateStr);
             if (wo) {
                 selectedDate = todayDateStr;
-                editWorkout(todayDateStr);
+                editWorkout(todayDateStr); // Вызываем нашу обновленную функцию
             } else {
                 go('newWorkout');
             }
         }
 
+        // --- ИЗМЕНЕНИЕ v2.3 ---
         function editWorkout(dateStr) {
             selectedDate = dateStr;
-            go('editWorkout');
+            
+            // Загружаем данные в currentWorkout ЗДЕСЬ, один раз
+            const wo = workouts.find(w => w.date === selectedDate);
+            if (!wo) {
+                showToast('Ошибка', 'Тренировка не найдена', 'error');
+                return go('calendar'); 
+            }
+            currentWorkout = JSON.parse(JSON.stringify(wo.exercises));
+            
+            go('editWorkout'); // А теперь переключаем экран
         }
 
         function cancelEdit() {
@@ -1383,7 +1345,6 @@
 
         function saveWorkout() {
             if (currentWorkout.length === 0) {
-                // ЗАМЕНА ALERT
                 showToast('Ошибка', 'Добавьте хотя бы одно упражнение', 'error');
                 return;
             }
@@ -1393,7 +1354,6 @@
             );
 
             if (validWorkout.length === 0) {
-                 // ЗАМЕНА ALERT
                  showToast('Ошибка', 'Добавьте хотя бы один подход с весом или повторениями', 'error');
                  return;
             }
@@ -1414,7 +1374,6 @@
 
             save();
             currentWorkout = [];
-            // ЗАМЕНА ALERT
             showToast('Успех', 'Тренировка сохранена!', 'success');
             go('home');
         }
@@ -1499,32 +1458,25 @@
         function updateSet(index, key, value) {
             const exIndex = currentWorkout.findIndex(ex => ex.exerciseId === selExId);
             if (exIndex === -1) return;
-            
             const numVal = (key === 'weight' || key === 'reps') ? parseFloat(value) : value;
-            
             if (!currentWorkout[exIndex].sets[index]) {
                 currentWorkout[exIndex].sets[index] = { setNumber: index + 1 };
                 if (key === 'weight') currentWorkout[exIndex].sets[index].reps = 0;
             }
-            
             currentWorkout[exIndex].sets[index][key] = isNaN(numVal) ? 0 : numVal;
         }
 
         function addSet() {
             const exIndex = currentWorkout.findIndex(ex => ex.exerciseId === selExId);
             if (exIndex === -1) return;
-            
             const setNumber = currentWorkout[exIndex].sets.length + 1;
             const newSet = { setNumber: setNumber, reps: 0 };
-            
             const eBase = exercises.find(e => e.id === selExId);
             const t = eBase ? eBase.type : 'reps';
-
             if (t === 'weight') {
                 newSet.weight = 0;
                 newSet.reps = 0;
             }
-
             currentWorkout[exIndex].sets.push(newSet);
             render();
         }
@@ -1532,13 +1484,10 @@
         function deleteSet(index) {
             const exIndex = currentWorkout.findIndex(ex => ex.exerciseId === selExId);
             if (exIndex === -1) return;
-            
             currentWorkout[exIndex].sets.splice(index, 1);
-            
             currentWorkout[exIndex].sets.forEach((set, i) => {
                 set.setNumber = i + 1;
             });
-
             render();
         }
 
@@ -1611,12 +1560,11 @@
                      <button onclick="resetEx()" style="width: 100%; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 12px;">🗑️ Удалить все упражнения</button>
                      <button onclick="resetAll()" style="width: 100%; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">⚠️ СБРОСИТЬ ВСЁ</button></div>
                      <div class="card"><h3 style="margin-bottom: 12px;">О приложении</h3>
-                     <p style="color: #666; font-size: 14px;">💪 Трекер Тренировок **v2.2** (Toast UI)<br>Все данные хранятся локально</p></div>`;
+                     <p style="color: #666; font-size: 14px;">💪 Трекер Тренировок **v2.3** (Edit Fix)<br>Все данные хранятся локально</p></div>`;
             return h;
         }
         
         function resetRoutines() {
-            // ОСТАВЛЯЕМ CONFIRM
             if (confirm('Удалить ВСЕ шаблоны?')) {
                 routines = [];
                 save();
@@ -1626,7 +1574,6 @@
         }
 
         function resetWo() {
-            // ОСТАВЛЯЕМ CONFIRM
             if (confirm('Удалить ВСЕ тренировки?')) {
                 workouts = [];
                 save();
@@ -1636,7 +1583,6 @@
         }
 
         function resetEx() {
-            // ОСТАВЛЯЕМ CONFIRM
             if (confirm('Удалить ВСЕ упражнения, тренировки и шаблоны?')) {
                 exercises = [];
                 workouts = [];
@@ -1648,7 +1594,6 @@
         }
 
         function resetAll() {
-            // ОСТАВЛЯЕМ CONFIRM
             if (confirm('⚠️ УДАЛИТЬ ВСЕ ДАННЫЕ?')) {
                 if (confirm('Точно? Последнее предупреждение!')) {
                     exercises = [];

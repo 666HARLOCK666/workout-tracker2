@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* --- НОВЫЙ ДИЗАЙН "PREMIUM" (v2.5) --- */
+        /* --- ДИЗАЙН "PREMIUM" (v2.6) --- */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
@@ -185,7 +185,7 @@
         .delete-btn { 
             background: none; 
             border: none; 
-            color: #f472b6; /* Premium pink/red */
+            color: #f472b6;
             cursor: pointer; 
             font-size: 20px; 
             transition: color 0.2s ease;
@@ -274,7 +274,7 @@
         .day-padding:hover { background: none; }
         canvas { max-width: 100%; height: 250px !important; }
 
-        /* Стили уведомлений (адаптированные) */
+        /* Стили уведомлений */
         #toast-container {
             position: fixed;
             top: 16px;
@@ -343,6 +343,7 @@
         let selectedDate = new Date().toISOString().split('T')[0];
         let currentWorkout = [];
         let selExId = null; 
+        let exStatsBackView = 'stats'; // <-- ИСПРАВЛЕНИЕ 1: Новая переменная
         let currentViewDate = new Date(); 
         let selExIdHome = null; 
         let selectedExIdEdit = null; 
@@ -387,12 +388,16 @@
         if (window.Telegram?.WebApp) {
             Telegram.WebApp.ready();
             Telegram.WebApp.expand();
-            Telegram.WebApp.setHeaderColor('#0f172a'); // Устанавливаем цвет хедера под фон
-            Telegram.WebApp.setBackgroundColor('#0f172a'); // Устанавливаем фон
+            Telegram.WebApp.setHeaderColor('#0f172a');
+            Telegram.WebApp.setBackgroundColor('#0f172a');
         }
 
         function init() {
             try {
+                // ИСПРАВЛЕНИЕ 3: Настройки для графиков
+                Chart.defaults.color = '#cbd5e1';
+                Chart.defaults.borderColor = 'rgba(255,255,255,0.1)';
+
                 const ex = localStorage.getItem('workout-exercises');
                 const wo = localStorage.getItem('workout-logs');
                 const rt = localStorage.getItem('workout-routines'); 
@@ -636,7 +641,6 @@
             return maxVolume;
         }
 
-        // --- ОБНОВЛЕННАЯ RENDERHOME (v2.5) ---
         function renderHome() {
             const dayStreak = getStreak();
             const weekStreak = getWeeklyStreak(); 
@@ -860,10 +864,6 @@
             if (window[id + 'Chart']) {
                 window[id + 'Chart'].destroy();
             }
-            // Устанавливаем цвета для текста на графиках
-            Chart.defaults.color = '#cbd5e1';
-            Chart.defaults.borderColor = 'rgba(255,255,255,0.1)';
-
             window[id + 'Chart'] = new Chart(ctx, {
                 type: type, 
                 data: {
@@ -924,7 +924,7 @@
             else { ul = 'Повторения'; us = 'повт'; }
 
             let h = `<div class="top-bar">
-                    <button class="back-btn" onclick="go(document.referrer.includes('exercises') ? 'exercises' : 'stats')">←</button>
+                    <button class="back-btn" onclick="go('${exStatsBackView}')">←</button>
                     <h2 class="header" style="margin-bottom: 0; max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${ex.name}</h2>
                     <div style="width: 40px;"></div>
                 </div>
@@ -1001,7 +1001,8 @@
                     workouts.forEach(w => {
                         const d = new Date(w.date);
                         if (d >= ms && d <= me) {
-                            const e = wo.exercises.find(e => e.exerciseId === ex.id);
+                            // ИСПРАВЛЕНИЕ 2: Было 'wo.exercises', стало 'w.exercises'
+                            const e = w.exercises.find(e => e.exerciseId === ex.id); 
                             if (e) { s += e.sets.length; r += e.sets.reduce((sum, set) => sum + (set.reps || 0), 0); }
                         }
                     });
@@ -1042,7 +1043,8 @@
             else exercises.forEach(ex => {
                 const tl = ex.type === 'weight' ? '🏋️ Вес' : ex.type === 'distance' ? '🚴 Км' : ex.type === 'time' ? '⏱️ Время' : '🔢 Повт';
                 
-                h += `<div class="exercise-item" onclick="viewExStats('${ex.id}')">
+                // ИСПРАВЛЕНИЕ 1: Передаем 'exercises' в viewExStats
+                h += `<div class="exercise-item" onclick="viewExStats('${ex.id}', 'exercises')">
                     <div>
                         <span style="font-weight: 600; color: #f8fafc;">${ex.name}</span>
                         <div style="font-size: 12px; color: #cbd5e1; margin-top: 2px;">${tl}</div>
@@ -1623,7 +1625,8 @@
                     stats = `<div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Нет данных</div>`;
                 }
 
-                h += `<div class="exercise-item" onclick="viewExStats('${ex.id}')">
+                // ИСПРАВЛЕНИЕ 1: Передаем 'stats' в viewExStats
+                h += `<div class="exercise-item" onclick="viewExStats('${ex.id}', 'stats')">
                     <div>
                         <span style="font-weight: 600; color: #f8fafc;">${ex.name}</span>
                         <div style="font-size: 12px; color: #cbd5e1; margin-top: 2px;">Тренировок: ${totalWorkouts}</div>
@@ -1637,8 +1640,10 @@
             return h;
         }
 
-        function viewExStats(exId) {
+        // ИСПРАВЛЕНИЕ 1: Функция теперь принимает 'backView'
+        function viewExStats(exId, backView = 'stats') {
             selExId = exId;
+            exStatsBackView = backView; // Сохраняем, куда возвращаться
             go('exerciseStats');
         }
 
@@ -1661,7 +1666,7 @@
                      </div>
                      <div class="card">
                         <h3 class="header" style="font-size: 18px;">О приложении</h3>
-                        <p style="color: #cbd5e1; font-size: 14px;">💪 Трекер Тренировок **v2.5** (Premium)<br>Все данные хранятся локально</p>
+                        <p style="color: #cbd5e1; font-size: 14px;">💪 Трекер Тренировок **v2.6** (Premium / Stats Fix)<br>Все данные хранятся локально</p>
                      </div>`;
             return h;
         }

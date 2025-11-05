@@ -7,54 +7,74 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* --- НОВЫЙ ДИЗАЙН "МИНИМАЛИЗМ" (v2.4) --- */
+        /* --- НОВЫЙ ДИЗАЙН "PREMIUM" (v2.5) --- */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
-            background: #fafafa; 
-            color: #222; 
+            background: radial-gradient(circle at top, #0f172a, #1e293b); 
+            color: #f8fafc; 
             line-height: 1.5; 
+            min-height: 100vh; 
+            overflow-x: hidden; 
+        }
+        .fade-in { 
+            animation: fadeInUp 0.6s ease forwards; 
+            opacity: 0; 
+            transform: translateY(20px); 
+        }
+        @keyframes fadeInUp { 
+            to { opacity: 1; transform: translateY(0); } 
         }
         .container { max-width: 640px; margin: 0 auto; padding: 20px; padding-bottom: 80px; }
         .card { 
-            background: #fff; 
-            border-radius: 10px; 
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08); 
-            padding: 16px; 
-            margin-bottom: 16px; 
+            background: rgba(255,255,255,0.05); 
+            border-radius: 16px; 
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3); 
+            padding: 20px; 
+            margin-bottom: 20px; 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255,255,255,0.08); 
         }
         .header { 
-            font-size: 22px; 
+            font-size: 24px; 
             font-weight: 600; 
-            margin-bottom: 12px; 
+            margin-bottom: 16px; 
+            color: #ffffff; 
         }
         .stat-grid { 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
-            gap: 12px; 
+            gap: 14px; 
             text-align: center; 
         }
         .stat-item { 
-            background: #f3f4f6; 
-            border-radius: 8px; 
+            background: rgba(255,255,255,0.08); 
+            border-radius: 10px; 
             padding: 10px 0; 
+            transition: transform 0.2s ease, background 0.2s ease; 
+        }
+        .stat-item:hover { 
+            transform: translateY(-2px); 
+            background: rgba(255,255,255,0.12); 
         }
         .stat-item p:first-child { 
-            font-size: 12px; 
-            color: #666; 
+            font-size: 13px; 
+            color: #cbd5e1; 
         }
         .stat-item p:last-child { 
-            font-size: 18px; 
+            font-size: 20px; 
             font-weight: 600; 
+            color: #ffffff; 
         }
         .btn-grid { 
             display: grid; 
             grid-template-columns: repeat(2, 1fr); 
-            gap: 12px; 
+            gap: 14px; 
+            margin-top: 20px; 
         }
         .btn { 
-            padding: 16px; 
-            border-radius: 10px; 
+            padding: 18px; 
+            border-radius: 14px; 
             border: none; 
             cursor: pointer; 
             font-size: 16px; 
@@ -64,21 +84,34 @@
             align-items: center; 
             justify-content: center; 
             gap: 6px; 
-            background: #2563eb; 
-            color: white; 
-            transition: background 0.2s ease; 
+            background: linear-gradient(135deg, #6366f1, #8b5cf6); 
+            color: #fff; 
+            transition: all 0.3s ease; 
+            box-shadow: 0 4px 12px rgba(99,102,241,0.3); 
         }
-        .btn:hover { background: #1d4ed8; }
+        .btn:hover { 
+            transform: translateY(-3px); 
+            box-shadow: 0 6px 16px rgba(139,92,246,0.4); 
+        }
         .btn-secondary { 
-            background: #e5e7eb; 
-            color: #111; 
+            background: rgba(255,255,255,0.08); 
+            color: #e2e8f0; 
+            box-shadow: none; 
         }
-        .btn-secondary:hover { background: #d1d5db; }
+        .btn-secondary:hover { 
+            background: rgba(255,255,255,0.12); 
+            transform: translateY(-2px); 
+            box-shadow: none;
+        }
         .btn-danger {
-            background: #ef4444;
+            background: linear-gradient(135deg, #f43f5e, #e11d48);
             color: white;
+            box-shadow: 0 4px 12px rgba(244,63,94,0.3);
         }
-        .btn-danger:hover { background: #dc2626; }
+        .btn-danger:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(244,63,94,0.4);
+        }
         
         .top-bar { 
             display: flex; 
@@ -87,26 +120,90 @@
             margin-bottom: 16px; 
         }
         .back-btn { 
-            width: 36px; 
-            height: 36px; 
+            width: 40px; 
+            height: 40px; 
             border-radius: 50%; 
             border: none; 
-            background: #2563eb; 
+            background: linear-gradient(135deg, #6366f1, #8b5cf6); 
             color: #fff; 
             font-size: 18px; 
             cursor: pointer; 
+            box-shadow: 0 3px 8px rgba(99,102,241,0.3); 
+            transition: transform 0.2s ease; 
         }
+        .back-btn:hover { transform: scale(1.1); }
         .save-btn { 
-            background: #10b981; 
+            background: linear-gradient(135deg, #10b981, #059669); 
             border: none; 
             color: white; 
-            padding: 8px 16px; 
-            border-radius: 8px; 
+            padding: 10px 18px; 
+            border-radius: 10px; 
             font-weight: 600; 
             cursor: pointer; 
+            box-shadow: 0 3px 10px rgba(16,185,129,0.3); 
+            transition: all 0.2s ease; 
+        }
+        .save-btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 6px 14px rgba(16,185,129,0.4); 
+        }
+        .empty-state { 
+            text-align: center; 
+            color: #94a3b8; 
+            padding: 40px 0; 
+        }
+        .hide { display: none; }
+        
+        /* --- Добавленные/адаптированные стили --- */
+        input[type="text"], input[type="date"], input[type="number"], select { 
+            width: 100%; 
+            padding: 14px; 
+            border: 1px solid rgba(255,255,255,0.1); 
+            border-radius: 10px; 
+            font-size: 16px; 
+            background: rgba(0,0,0,0.2);
+            color: #f8fafc;
+        }
+        select option {
+            background: #1e293b;
+            color: #f8fafc;
+        }
+        .exercise-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 14px; 
+            background: rgba(255,255,255,0.08); 
+            border-radius: 10px; 
+            margin-bottom: 8px; 
+            cursor: pointer; 
+            transition: background 0.2s ease;
+        }
+        .exercise-item:hover {
+            background: rgba(255,255,255,0.12);
+        }
+        .delete-btn { 
+            background: none; 
+            border: none; 
+            color: #f472b6; /* Premium pink/red */
+            cursor: pointer; 
+            font-size: 20px; 
+            transition: color 0.2s ease;
+        }
+        .delete-btn:hover { color: #fb7185; }
+        .set-row { 
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+            margin-bottom: 12px; 
+        }
+        .set-label { 
+            font-weight: 600; 
+            width: 100px; 
+            color: #cbd5e1;
         }
 
-        /* --- Стили календаря (из вашего примера) --- */
+        /* Стили календаря */
         .month-nav { 
             display: flex; 
             justify-content: space-between; 
@@ -114,18 +211,23 @@
             margin-bottom: 16px; 
         }
         .month-nav button { 
-            background: #2563eb; 
-            color: white; 
+            background: rgba(255,255,255,0.08);
+            color: #e2e8f0;
             border: none; 
             padding: 8px 16px; 
-            border-radius: 8px; 
+            border-radius: 10px; 
             font-size: 14px; 
             font-weight: 600; 
-            cursor: pointer; 
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .month-nav button:hover {
+            background: rgba(255,255,255,0.12);
         }
         .month-nav h3 { 
             font-size: 20px; 
             text-transform: capitalize;
+            color: #ffffff;
         }
         .calendar-header { 
             display: grid; 
@@ -136,7 +238,7 @@
         .calendar-header div { 
             font-weight: 600; 
             text-align: center; 
-            color: #666; 
+            color: #94a3b8; 
             font-size: 14px; 
         }
         .calendar-grid { 
@@ -146,67 +248,33 @@
         }
         .calendar-day { 
             aspect-ratio: 1; 
-            border-radius: 6px; 
-            background: #f3f4f6; 
+            border-radius: 10px; 
+            background: rgba(255,255,255,0.08); 
             border: none; 
             cursor: pointer; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
             font-size: 14px; 
+            color: #f8fafc;
             transition: all 0.2s ease; 
         }
-        .calendar-day:hover { background: #e5e7eb; }
-        .day-workout { background: #10b981; color: white; font-weight: 600; }
-        .day-today { box-shadow: 0 0 0 2px #2563eb inset; }
-
-        /* --- Добавленные/адаптированные стили --- */
-        input[type="text"], input[type="date"], input[type="number"], select { 
-            width: 100%; 
-            padding: 12px; 
-            border: 1px solid #ddd; 
-            border-radius: 8px; 
-            font-size: 16px; 
-            background: #fdfdfd;
-        }
-        .exercise-item { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            padding: 12px; 
-            background: #f9f9f9; 
-            border-radius: 8px; 
-            margin-bottom: 8px; 
-            cursor: pointer; 
-            border: 1px solid #f0f0f0;
-        }
-        .delete-btn { 
-            background: none; 
-            border: none; 
-            color: #ef4444; 
-            cursor: pointer; 
-            font-size: 20px; 
-        }
-        .set-row { 
-            display: flex; 
-            gap: 8px; 
-            align-items: center; 
-            margin-bottom: 8px; 
-        }
-        .set-label { 
+        .calendar-day:hover { background: rgba(255,255,255,0.12); }
+        .day-workout { 
+            background: linear-gradient(135deg, #10b981, #059669); 
+            color: white; 
             font-weight: 600; 
-            width: 100px; 
-            color: #333;
+            box-shadow: 0 3px 10px rgba(16,185,129,0.3);
         }
-        .empty-state { 
-            text-align: center; 
-            color: #777; 
-            padding: 40px 0; 
+        .day-today { box-shadow: 0 0 0 2px #6366f1 inset; }
+        .day-padding {
+            background: none;
+            cursor: default;
         }
-        .hide { display: none; }
+        .day-padding:hover { background: none; }
         canvas { max-width: 100%; height: 250px !important; }
 
-        /* --- Стили для уведомлений (адаптированные) --- */
+        /* Стили уведомлений (адаптированные) */
         #toast-container {
             position: fixed;
             top: 16px;
@@ -228,7 +296,8 @@
             color: white;
             font-size: 14px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.08);
             animation: toast-in 0.3s ease-out;
             width: 100%;
         }
@@ -244,12 +313,19 @@
             background: none; border: none; color: rgba(255, 255, 255, 0.7);
             cursor: pointer; font-size: 20px; line-height: 1; padding: 0;
         }
-        /* Цвета в стиле "Минимализм" */
-        .toast-info { background: rgba(37, 99, 235, 0.9); } /* Синий */
-        .toast-success { background: rgba(16, 185, 129, 0.9); } /* Зеленый */
-        .toast-error { background: rgba(239, 68, 68, 0.9); } /* Красный */
+        .toast-info {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+        }
+        .toast-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+        }
+        .toast-error {
+            background: linear-gradient(135deg, #f43f5e, #e11d48);
+            box-shadow: 0 4px 12px rgba(244,63,94,0.3);
+        }
         /* --- КОНЕЦ СТИЛЕЙ --- */
-
     </style>
 </head>
 <body>
@@ -311,6 +387,8 @@
         if (window.Telegram?.WebApp) {
             Telegram.WebApp.ready();
             Telegram.WebApp.expand();
+            Telegram.WebApp.setHeaderColor('#0f172a'); // Устанавливаем цвет хедера под фон
+            Telegram.WebApp.setBackgroundColor('#0f172a'); // Устанавливаем фон
         }
 
         function init() {
@@ -373,7 +451,7 @@
                     try {
                         const importedData = JSON.parse(e.target.result);
                         if (!importedData.exercises || !importedData.workouts || !importedData.routines) {
-                            throw new Error("Неверный формат файла данных. Должен содержать exercises, workouts и routines.");
+                            throw new Error("Неверный формат файла данных.");
                         }
                         exercises = importedData.exercises;
                         workouts = importedData.workouts;
@@ -558,7 +636,7 @@
             return maxVolume;
         }
 
-        // --- ОБНОВЛЕННАЯ RENDERHOME (v2.4) ---
+        // --- ОБНОВЛЕННАЯ RENDERHOME (v2.5) ---
         function renderHome() {
             const dayStreak = getStreak();
             const weekStreak = getWeeklyStreak(); 
@@ -566,8 +644,8 @@
             const today = workouts.find(w => w.date === todayDateStr); 
             
             let h = `
-                <div class="header">💪 Трекер тренировок</div>
-                <div class="card stat-grid">
+                <div class="header fade-in" style="animation-delay: 0.1s;">💪 Трекер тренировок</div>
+                <div class="card stat-grid fade-in" style="animation-delay: 0.2s;">
                     <div class="stat-item">
                         <p>Дни 🔥</p>
                         <p>${dayStreak}</p>
@@ -583,22 +661,22 @@
                 </div>
 
                 <div class="btn-grid">
-                    <button class="btn" onclick="go('newWorkout')">➕ Новая</button>
-                    <button class="btn" onclick="go('exercises')">🏋️ Упражнения</button>
-                    <button class="btn" onclick="go('routines')">📋 Шаблоны</button>
-                    <button class="btn" onclick="go('calendar')">📅 Календарь</button>
+                    <button class="btn fade-in" style="animation-delay: 0.3s;" onclick="go('newWorkout')">➕ Новая</button>
+                    <button class="btn fade-in" style="animation-delay: 0.4s;" onclick="go('exercises')">🏋️ Упражнения</button>
+                    <button class="btn fade-in" style="animation-delay: 0.5s;" onclick="go('routines')">📋 Шаблоны</button>
+                    <button class="btn fade-in" style="animation-delay: 0.6s;" onclick="go('calendar')">📅 Календарь</button>
                 </div>
                 
-                <button class="btn btn-secondary" style="width:100%; margin-top:16px;" onclick="go('stats')">📊 Статистика</button>
-                <button class="btn btn-secondary" style="width:100%; margin-top:8px;" onclick="go('settings')">⚙️ Настройки</button>
+                <button class="btn btn-secondary fade-in" style="width:100%; margin-top:16px; animation-delay:0.7s;" onclick="go('stats')">📊 Статистика</button>
+                <button class="btn btn-secondary fade-in" style="width:100%; margin-top:8px; animation-delay:0.8s;" onclick="go('settings')">⚙️ Настройки</button>
             `;
 
             if (today) {
                 h += `
-                <div class="card" style="margin-top: 16px;">
+                <div class="card fade-in" style="margin-top: 20px; animation-delay: 1s;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <h3 style="margin: 0; font-size: 18px;">Сегодняшняя тренировка</h3>
-                        <button onclick="editToday()" class="save-btn" style="background: #2563eb; box-shadow: none; padding: 8px 12px; font-size: 16px;">✏️ Редактировать</button>
+                        <h3 style="margin: 0; font-size: 18px;" class="header">Сегодня</h3>
+                        <button onclick="editToday()" class="save-btn" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); box-shadow: 0 3px 8px rgba(99,102,241,0.3); padding: 8px 12px; font-size: 16px;">✏️</button>
                     </div>`;
                 today.exercises.forEach(ex => {
                     const e = exercises.find(e => e.id === ex.exerciseId);
@@ -612,12 +690,12 @@
                     else if (t === 'time') d = `${ex.sets.length} подходов • ${Math.round(totalReps)} мин`;
                     else d = `${ex.sets.length} подходов • ${totalReps} повторений`;
                     
-                    h += `<div style="padding: 12px 0; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="viewHomeExDetail('${ex.exerciseId}')">
+                    h += `<div style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.08); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="viewHomeExDetail('${ex.exerciseId}')">
                         <div>
-                            <div style="font-weight: 600;">${ex.exerciseName}</div>
-                            <div style="color: #666; font-size: 14px;">${d}</div>
+                            <div style="font-weight: 600; color: #f8fafc;">${ex.exerciseName}</div>
+                            <div style="color: #cbd5e1; font-size: 14px;">${d}</div>
                         </div>
-                        <span style="font-size: 24px; color: #bbb;">›</span>
+                        <span style="font-size: 24px; color: #94a3b8;">›</span>
                     </div>`;
                 });
                 h += '</div>';
@@ -638,8 +716,8 @@
 
             let h = `<div class="top-bar">
                         <button class="back-btn" onclick="go('home')">←</button>
-                        <h2 style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ex.exerciseName}</h2>
-                        <div style="width: 36px;"></div>
+                        <h2 class="header" style="margin-bottom: 0; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ex.exerciseName}</h2>
+                        <div style="width: 40px;"></div>
                      </div>`;
             h += `<div class="card">`;
             ex.sets.forEach(set => {
@@ -647,9 +725,9 @@
                 const isPR = (setVol > 0 && Math.abs(setVol - maxVol) < 0.01); 
                 const prLabel = isPR ? ' <span style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">🔥 PR</span>' : '';
 
-                h += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 4px; border-bottom: 1px solid #eee;">
-                    <span style="font-weight: 600; color: #555;">Подход ${set.setNumber}</span>
-                    <span style="color: #000; font-size: 16px; font-weight: 500;">`;
+                h += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 4px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+                    <span style="font-weight: 600; color: #cbd5e1;">Подход ${set.setNumber}</span>
+                    <span style="color: #f8fafc; font-size: 16px; font-weight: 500;">`;
                 if (t === 'weight') h += `${set.weight || 0} кг × ${set.reps || 0} повт${prLabel}`;
                 else if (t === 'distance') h += `${(set.reps || 0).toFixed(1)} км${prLabel}`;
                 else if (t === 'time') h += `${set.reps || 0} мин${prLabel}`;
@@ -671,7 +749,7 @@
                 const tr = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
                 sum = `${ex.sets.length} подходов • ${tr} повторений`;
             }
-            h += `<div style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #ddd; color: #333; font-weight: 600; text-align: right; font-size: 14px;">Всего: ${sum}</div></div>`;
+            h += `<div style="margin-top: 16px; padding-top: 16px; border-top: 2px solid rgba(255,255,255,0.1); color: #f8fafc; font-weight: 600; text-align: right; font-size: 14px;">Всего: ${sum}</div></div>`;
             return h;
         }
 
@@ -688,8 +766,8 @@
             const monthName = currentViewDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
             let h = `<div class="top-bar">
                         <button class="back-btn" onclick="go('home')">←</button>
-                        <h2 class="header">Календарь</h2>
-                        <div style="width: 36px;"></div>
+                        <h2 class="header" style="margin-bottom: 0;">Календарь</h2>
+                        <div style="width: 40px;"></div>
                      </div>
                      <div class="card">
                         <div class="month-nav">
@@ -702,7 +780,7 @@
                         </div>
                         <div class="calendar-grid">`;
             for (let i = 0; i < paddingDays; i++) {
-                h += `<div class="calendar-day" style="background: #fafafa; cursor: default;"></div>`;
+                h += `<div class="calendar-day day-padding"></div>`;
             }
             for (let day = 1; day <= daysInMonth; day++) {
                 const d = new Date(year, month, day, 12); 
@@ -727,14 +805,14 @@
             let h = `<div class="top-bar">
                         <button class="back-btn" onclick="go('calendar')">←</button>
                         <h2 class="header" style="margin-bottom: 0;">Тренировка</h2>
-                        <button onclick="editWorkout('${selectedDate}')" class="save-btn" style="background: #2563eb; box-shadow: none; padding: 8px 12px; font-size: 16px;">✏️</button>
+                        <button onclick="editWorkout('${selectedDate}')" class="btn" style="padding: 10px 18px; font-size: 16px;">✏️</button>
                      </div>
                      <div class="card">
-                        <h3 style="margin-bottom: 8px; font-size: 16px; color: #555;">${new Date(selectedDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}</h3>
+                        <h3 style="margin-bottom: 8px; font-size: 16px; color: #cbd5e1;">${new Date(selectedDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}</h3>
                         <p style="font-size: 24px; font-weight: 600;">Объем: ${totalVolume} ед.</p>
                      </div>
                      <div class="card">
-                        <h3 class="header" style="font-size: 18px;">Упражнения</h3>`;
+                        <h3 class="header" style="font-size: 18px; margin-bottom: 16px;">Упражнения</h3>`;
             
             wo.exercises.forEach(ex => {
                 const eBase = exercises.find(e => e.id === ex.exerciseId);
@@ -755,9 +833,9 @@
                     const isPR = (setVol > 0 && Math.abs(setVol - maxVol) < 0.01); 
                     const prLabel = isPR ? ' <span style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">🔥 PR</span>' : '';
                     
-                    setsHTML += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 4px; border-bottom: 1px solid #eee;">
-                        <span style="font-weight: 600; color: #555;">Подход ${set.setNumber}</span>
-                        <span style="color: #000; font-size: 16px; font-weight: 500;">`;
+                    setsHTML += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 4px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+                        <span style="font-weight: 600; color: #cbd5e1;">Подход ${set.setNumber}</span>
+                        <span style="color: #f8fafc; font-size: 16px; font-weight: 500;">`;
                     if (t === 'weight') setsHTML += `${set.weight || 0} кг × ${set.reps || 0} повт${prLabel}`;
                     else if (t === 'distance') setsHTML += `${(set.reps || 0).toFixed(1)} км${prLabel}`;
                     else if (t === 'time') setsHTML += `${set.reps || 0} мин${prLabel}`;
@@ -766,9 +844,9 @@
                 });
                 
                 h += `<div style="margin-bottom: 16px;">
-                    <div style="font-weight: 600; padding: 8px 0;">${ex.exerciseName}</div>
-                    <div style="color: #666; font-size: 14px; margin-bottom: 8px;">${d}</div>
-                    <div style="background: #fafafa; border: 1px solid #f0f0f0; border-radius: 8px; padding: 4px;">${setsHTML}</div>
+                    <div style="font-weight: 600; padding: 8px 0; color: #f8fafc;">${ex.exerciseName}</div>
+                    <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 8px;">${d}</div>
+                    <div style="background: rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 4px;">${setsHTML}</div>
                 </div>`;
             });
 
@@ -782,6 +860,10 @@
             if (window[id + 'Chart']) {
                 window[id + 'Chart'].destroy();
             }
+            // Устанавливаем цвета для текста на графиках
+            Chart.defaults.color = '#cbd5e1';
+            Chart.defaults.borderColor = 'rgba(255,255,255,0.1)';
+
             window[id + 'Chart'] = new Chart(ctx, {
                 type: type, 
                 data: {
@@ -805,7 +887,7 @@
                         tooltip: { mode: 'index', intersect: false }
                     },
                     scales: {
-                        y: { beginAtZero: true },
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } },
                         x: { grid: { display: false } }
                     }
                 }
@@ -844,7 +926,7 @@
             let h = `<div class="top-bar">
                     <button class="back-btn" onclick="go(document.referrer.includes('exercises') ? 'exercises' : 'stats')">←</button>
                     <h2 class="header" style="margin-bottom: 0; max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${ex.name}</h2>
-                    <div style="width: 36px;"></div>
+                    <div style="width: 40px;"></div>
                 </div>
                 <div class="card">
                     <h3 class="header" style="font-size: 18px;">Общая статистика</h3>
@@ -883,12 +965,12 @@
 
                 h += `<div class="card"><h3 class="header" style="font-size: 18px;">Последние 7 дней</h3>
                     <canvas id="wc"></canvas>
-                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
                     <div class="stat-grid" style="grid-template-columns: 1fr 1fr; gap: 8px;">
                     <div class="stat-item" style="background: none;"><p>Всего ${ul.toLowerCase()}</p>
-                    <p style="color: #2563eb;">${ex.type === 'distance' ? wt.toFixed(1) : Math.round(wt)} ${us}</p></div>
+                    <p style="color: #6366f1;">${ex.type === 'distance' ? wt.toFixed(1) : Math.round(wt)} ${us}</p></div>
                     <div class="stat-item" style="background: none;"><p>Всего подходов</p>
-                    <p style="color: #2563eb;">${ws}</p></div></div></div></div>`;
+                    <p style="color: #6366f1;">${ws}</p></div></div></div></div>`;
 
                 const md = [];
                 for (let i = 29; i >= 0; i--) {
@@ -906,8 +988,8 @@
 
                 h += `<div class="card"><h3 class="header" style="font-size: 18px;">Последние 30 дней</h3>
                     <canvas id="mc"></canvas>
-                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; text-align: center;">
-                    <p style="font-size: 12px; color: #666;">Всего ${ul.toLowerCase()} за месяц</p>
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center;">
+                    <p style="font-size: 12px; color: #cbd5e1;">Всего ${ul.toLowerCase()} за месяц</p>
                     <p style="font-size: 24px; font-weight: bold; color: #10b981;">${ex.type === 'distance' ? mt.toFixed(1) : Math.round(mt)} ${us}</p></div></div>`;
 
                 const yd = [];
@@ -919,7 +1001,7 @@
                     workouts.forEach(w => {
                         const d = new Date(w.date);
                         if (d >= ms && d <= me) {
-                            const e = w.exercises.find(e => e.exerciseId === ex.id);
+                            const e = wo.exercises.find(e => e.exerciseId === ex.id);
                             if (e) { s += e.sets.length; r += e.sets.reduce((sum, set) => sum + (set.reps || 0), 0); }
                         }
                     });
@@ -929,24 +1011,24 @@
                 const ys = yd.reduce((s, d) => s + d.sets, 0);
                 h += `<div class="card"><h3 class="header" style="font-size: 18px;">Последние 12 месяцев</h3>
                     <canvas id="yc"></canvas>
-                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
                     <div class="stat-grid" style="grid-template-columns: 1fr 1fr; gap: 8px;">
                     <div class="stat-item" style="background: none;"><p>Всего ${ul.toLowerCase()}</p>
-                    <p style="color: #2563eb;">${ex.type === 'distance' ? yt.toFixed(1) : Math.round(yt)} ${us}</p></div>
+                    <p style="color: #6366f1;">${ex.type === 'distance' ? yt.toFixed(1) : Math.round(yt)} ${us}</p></div>
                     <div class="stat-item" style="background: none;"><p>Всего подходов</p>
-                    <p style="color: #2563eb;">${ys}</p></div></div></div></div>`;
+                    <p style="color: #6366f1;">${ys}</p></div></div></div></div>`;
 
                 setTimeout(() => {
-                    drawChart('wc', wd.map(d=>d.reps), wd.map(d=>d.day), 'bar', '#2563eb');
+                    drawChart('wc', wd.map(d=>d.reps), wd.map(d=>d.day), 'bar', '#6366f1');
                     drawChart('mc', md.map(d=>d.reps), md.map(d=>d.date), 'line', '#10b981');
-                    drawChart('yc', yd.map(d=>d.reps), yd.map(d=>d.month), 'bar', '#2563eb');
+                    drawChart('yc', yd.map(d=>d.reps), yd.map(d=>d.month), 'bar', '#6366f1');
                 }, 100);
             }
             return h;
         }
 
         function renderExercises() {
-            let h = `<div class="top-bar"><button class="back-btn" onclick="go('home')">←</button><h2 class="header" style="margin-bottom: 0;">Упражнения</h2><div style="width: 36px;"></div></div>
+            let h = `<div class="top-bar"><button class="back-btn" onclick="go('home')">←</button><h2 class="header" style="margin-bottom: 0;">Упражнения</h2><div style="width: 40px;"></div></div>
                 <div class="card"><input type="text" id="newEx" placeholder="Название упражнения" style="margin-bottom: 12px;">
                 <select id="exType" style="margin-bottom: 12px;">
                     <option value="reps">Повторения</option>
@@ -954,7 +1036,7 @@
                     <option value="distance">Расстояние (км)</option>
                     <option value="time">Время (мин)</option>
                 </select>
-                <button class="btn" style="width: 100%; padding: 12px;" onclick="addEx()">Добавить упражнение</button></div>`;
+                <button class="btn" style="width: 100%; padding: 14px;" onclick="addEx()">Добавить упражнение</button></div>`;
             
             if (!exercises.length) h += '<div class="empty-state"><div style="font-size: 48px;">🏋️</div><p>Нет упражнений</p></div>';
             else exercises.forEach(ex => {
@@ -962,11 +1044,11 @@
                 
                 h += `<div class="exercise-item" onclick="viewExStats('${ex.id}')">
                     <div>
-                        <span style="font-weight: 600;">${ex.name}</span>
-                        <div style="font-size: 12px; color: #666; margin-top: 2px;">${tl}</div>
+                        <span style="font-weight: 600; color: #f8fafc;">${ex.name}</span>
+                        <div style="font-size: 12px; color: #cbd5e1; margin-top: 2px;">${tl}</div>
                     </div>
                     <div style="display: flex; gap: 12px; align-items: center;">
-                        <button class="delete-btn" onclick="event.stopPropagation(); editEx('${ex.id}')" style="color: #2563eb; font-size: 20px;">✏️</button>
+                        <button class="delete-btn" onclick="event.stopPropagation(); editEx('${ex.id}')" style="color: #6366f1; font-size: 20px;">✏️</button>
                         <button class="delete-btn" onclick="event.stopPropagation(); delEx('${ex.id}')">🗑️</button>
                     </div>
                 </div>`;
@@ -989,7 +1071,7 @@
                     <option value="distance" ${ex.type === 'distance' ? 'selected' : ''}>Расстояние (км)</option>
                     <option value="time" ${ex.type === 'time' ? 'selected' : ''}>Время (мин)</option>
                 </select>
-                <button class="btn btn-danger" style="width: 100%; padding: 12px;" onclick="delEx('${ex.id}', true)">🗑️ Удалить упражнение</button>
+                <button class="btn btn-danger" style="width: 100%; padding: 14px;" onclick="delEx('${ex.id}', true)">🗑️ Удалить упражнение</button>
             </div>`;
             return h;
         }
@@ -1072,11 +1154,11 @@
             let h = `<div class="top-bar">
                         <button class="back-btn" onclick="go('home')">←</button>
                         <h2 class="header" style="margin-bottom: 0;">Шаблоны</h2>
-                        <div style="width: 36px;"></div>
+                        <div style="width: 40px;"></div>
                      </div>
                      <div class="card">
                         <input type="text" id="newRoutineName" placeholder="Название нового шаблона" style="margin-bottom: 12px;">
-                        <button class="btn" style="width: 100%; padding: 12px;" onclick="addRoutine()">+ Создать шаблон</button>
+                        <button class="btn" style="width: 100%; padding: 14px;" onclick="addRoutine()">+ Создать шаблон</button>
                      </div>`;
 
             if (!routines.length) {
@@ -1085,8 +1167,8 @@
                 routines.forEach(rt => {
                     h += `<div class="exercise-item" onclick="editRoutine('${rt.id}')">
                         <div>
-                            <span style="font-weight: 600;">${rt.name}</span>
-                            <div style="font-size: 12px; color: #666; margin-top: 2px;">Упражнений: ${rt.exercises.length}</div>
+                            <span style="font-weight: 600; color: #f8fafc;">${rt.name}</span>
+                            <div style="font-size: 12px; color: #cbd5e1; margin-top: 2px;">Упражнений: ${rt.exercises.length}</div>
                         </div>
                         <button class="delete-btn" onclick="event.stopPropagation(); delRoutine('${rt.id}')">🗑️</button>
                     </div>`;
@@ -1146,27 +1228,27 @@
             } else {
                 currentWorkout.forEach(ex => {
                     h += `<div class="exercise-item">
-                        <div style="font-weight: 600;">${ex.exerciseName}</div>
+                        <div style="font-weight: 600; color: #f8fafc;">${ex.exerciseName}</div>
                         <button class="delete-btn" onclick="removeExFromRoutine('${ex.exerciseId}')">🗑️</button>
                     </div>`;
                 });
             }
 
             h += `</div>
-                <button class="btn" style="width: 100%; padding: 12px; margin-top: 16px;" onclick="document.getElementById('addExModal').classList.remove('hide')">Добавить упражнение</button>
-                <button class="btn btn-danger" style="width: 100%; padding: 12px; margin-top: 12px;" onclick="delRoutine('${rt.id}')">🗑️ Удалить шаблон</button>
+                <button class="btn" style="width: 100%; padding: 14px; margin-top: 16px;" onclick="document.getElementById('addExModal').classList.remove('hide')">Добавить упражнение</button>
+                <button class="btn btn-danger" style="width: 100%; padding: 14px; margin-top: 12px;" onclick="delRoutine('${rt.id}')">🗑️ Удалить шаблон</button>
             </div>`;
 
-            h += `<div id="addExModal" class="card hide" style="background: white; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 400px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); padding: 20px;">
+            h += `<div id="addExModal" class="card hide" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 400px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); padding: 20px;">
                 <h3 class="header" style="font-size: 18px;">Выберите упражнение</h3>
-                <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 8px;">`;
+                <div style="max-height: 200px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 8px;">`;
             
             if (!exercises.length) {
                 h += `<div class="empty-state" style="padding: 10px;">Сначала добавьте упражнения</div>`;
             } else {
                 exercises.forEach(ex => {
                     if (!currentWorkout.some(cw => cw.exerciseId === ex.id)) {
-                        h += `<div class="exercise-item" onclick="addExToRoutine('${ex.id}', '${ex.name}')" style="padding: 8px; margin-bottom: 4px; background: #f3f4f6; cursor: pointer;">${ex.name}</div>`;
+                        h += `<div class="exercise-item" onclick="addExToRoutine('${ex.id}', '${ex.name}')" style="padding: 12px; margin-bottom: 4px; background: rgba(255,255,255,0.1); cursor: pointer;">${ex.name}</div>`;
                     }
                 });
                 if (currentWorkout.length === exercises.length) {
@@ -1175,7 +1257,7 @@
             }
             
             h += `</div>
-                <button class="btn btn-secondary" style="width: 100%; padding: 12px; margin-top: 16px;" onclick="document.getElementById('addExModal').classList.add('hide')">Закрыть</button>
+                <button class="btn btn-secondary" style="width: 100%; padding: 14px; margin-top: 16px;" onclick="document.getElementById('addExModal').classList.add('hide')">Закрыть</button>
             </div>`;
 
             return h;
@@ -1273,8 +1355,8 @@
 
                     h += `<div class="exercise-item" onclick="viewWorkoutDetails('${ex.exerciseId}')">
                         <div>
-                            <span style="font-weight: 600;">${ex.exerciseName}</span>
-                            <div style="font-size: 12px; color: #666;">${d}</div>
+                            <span style="font-weight: 600; color: #f8fafc;">${ex.exerciseName}</span>
+                            <div style="font-size: 12px; color: #cbd5e1;">${d}</div>
                         </div>
                         <button class="delete-btn" onclick="event.stopPropagation(); removeExFromWorkout('${ex.exerciseId}')">🗑️</button>
                     </div>`;
@@ -1282,19 +1364,19 @@
             }
 
             h += `</div>
-                <button class="btn" style="width: 100%; padding: 12px; margin-top: 16px;" onclick="document.getElementById('addExModal').classList.remove('hide')">Добавить упражнение</button>
+                <button class="btn" style="width: 100%; padding: 14px; margin-top: 16px;" onclick="document.getElementById('addExModal').classList.remove('hide')">Добавить упражнение</button>
             </div>`;
 
-            h += `<div id="addExModal" class="card hide" style="background: white; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 400px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); padding: 20px;">
+            h += `<div id="addExModal" class="card hide" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 400px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); padding: 20px;">
                 <h3 class="header" style="font-size: 18px;">Выберите упражнение</h3>
-                <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 8px;">`;
+                <div style="max-height: 200px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 8px;">`;
             
             if (!exercises.length) {
                 h += `<div class="empty-state" style="padding: 10px;">Сначала добавьте упражнения</div>`;
             } else {
                 exercises.forEach(ex => {
                     if (!currentWorkout.some(cw => cw.exerciseId === ex.id)) {
-                        h += `<div class="exercise-item" onclick="addExToWorkout('${ex.id}', '${ex.name}')" style="padding: 8px; margin-bottom: 4px; background: #f3f4f6; cursor: pointer;">${ex.name}</div>`;
+                        h += `<div class="exercise-item" onclick="addExToWorkout('${ex.id}', '${ex.name}')" style="padding: 12px; margin-bottom: 4px; background: rgba(255,255,255,0.1); cursor: pointer;">${ex.name}</div>`;
                     }
                 });
                 if (currentWorkout.length === exercises.length) {
@@ -1303,7 +1385,7 @@
             }
             
             h += `</div>
-                <button class="btn btn-secondary" style="width: 100%; padding: 12px; margin-top: 16px;" onclick="document.getElementById('addExModal').classList.add('hide')">Отмена</button>
+                <button class="btn btn-secondary" style="width: 100%; padding: 14px; margin-top: 16px;" onclick="document.getElementById('addExModal').classList.add('hide')">Отмена</button>
             </div>`;
 
             return h;
@@ -1328,7 +1410,6 @@
         }
 
         function renderEditWorkout() {
-            // v2.3 Fix: Логика перенесена в editWorkout()
             return renderNewWorkout(); 
         }
 
@@ -1343,7 +1424,6 @@
             }
         }
 
-        // v2.3 Fix: Логика загрузки тренировки перенесена сюда
         function editWorkout(dateStr) {
             selectedDate = dateStr;
             const wo = workouts.find(w => w.date === selectedDate);
@@ -1428,10 +1508,10 @@
             let h = `<div class="top-bar">
                         <button class="back-btn" onclick="go(currentView === 'editWorkout' ? 'editWorkout' : 'newWorkout')">←</button>
                         <h2 class="header" style="margin-bottom: 0; max-width: 240px; overflow: hidden; text-overflow: ellipsis;">${ex.exerciseName}</h2>
-                        <div style="width: 36px;"></div>
+                        <div style="width: 40px;"></div>
                      </div>
                      <div class="card">
-                        <h3 class="header" style="font-size: 18px;">Подходы</h3>`;
+                        <h3 class="header" style="font-size: 18px; margin-bottom: 16px;">Подходы</h3>`;
             
             ex.sets.forEach((set, index) => {
                 const setVol = calculateSetVolume(set, t);
@@ -1467,7 +1547,7 @@
                 h += `</div>`;
             });
             
-            h += `<button class="btn" style="width: 100%; padding: 12px; margin-top: 16px; background: #10b981;" onclick="addSet()">+ Добавить подход</button>
+            h += `<button class="save-btn" style="width: 100%; padding: 14px; margin-top: 16px;" onclick="addSet()">+ Добавить подход</button>
                      </div>`;
             return h;
         }
@@ -1512,7 +1592,7 @@
             let h = `<div class="top-bar">
                         <button class="back-btn" onclick="go('home')">←</button>
                         <h2 class="header" style="margin-bottom: 0;">Статистика</h2>
-                        <div style="width: 36px;"></div>
+                        <div style="width: 40px;"></div>
                      </div>
                      <div class="card">
                         <h3 class="header" style="font-size: 18px;">Упражнения</h3>`;
@@ -1538,18 +1618,18 @@
                         maxVal = exWo.map(w => w.exercises.find(e => e.exerciseId === ex.id).sets.reduce((s, set) => s + (set.reps || 0), 0)).reduce((a, b) => Math.max(a, b), 0);
                         stats = `Макс. за трен.: ${Math.round(maxVal)} повт`;
                     }
-                    stats = `<div style="font-size: 12px; color: #2563eb; margin-top: 4px;">${stats}</div>`;
+                    stats = `<div style="font-size: 12px; color: #8b5cf6; margin-top: 4px;">${stats}</div>`;
                 } else {
-                    stats = `<div style="font-size: 12px; color: #999; margin-top: 4px;">Нет данных</div>`;
+                    stats = `<div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Нет данных</div>`;
                 }
 
                 h += `<div class="exercise-item" onclick="viewExStats('${ex.id}')">
                     <div>
-                        <span style="font-weight: 600;">${ex.name}</span>
-                        <div style="font-size: 12px; color: #666; margin-top: 2px;">Тренировок: ${totalWorkouts}</div>
+                        <span style="font-weight: 600; color: #f8fafc;">${ex.name}</span>
+                        <div style="font-size: 12px; color: #cbd5e1; margin-top: 2px;">Тренировок: ${totalWorkouts}</div>
                         ${stats}
                     </div>
-                    <span style="font-size: 24px; color: #bbb;">📊</span>
+                    <span style="font-size: 24px; color: #94a3b8;">📊</span>
                 </div>`;
             });
 
@@ -1566,22 +1646,22 @@
             let h = `<div class="top-bar">
                         <button class="back-btn" onclick="go('home')">←</button>
                         <h2 class="header" style="margin-bottom: 0;">Настройки</h2>
-                        <div style="width: 36px;"></div>
+                        <div style="width: 40px;"></div>
                      </div>
                      <div class="card">
                         <h3 class="header" style="font-size: 18px;">Резервное копирование</h3>
-                         <button onclick="exportData()" class="btn" style="width: 100%; padding: 12px; margin-bottom: 12px;">⬇️ Экспорт данных (.json)</button>
-                         <button onclick="importData()" class="btn" style="width: 100%; padding: 12px; margin-bottom: 24px;">⬆️ Импорт данных (.json)</button>
+                         <button onclick="exportData()" class="btn" style="width: 100%; padding: 14px; margin-bottom: 12px;">⬇️ Экспорт данных (.json)</button>
+                         <button onclick="importData()" class="btn" style="width: 100%; padding: 14px; margin-bottom: 24px;">⬆️ Импорт данных (.json)</button>
                         
                          <h3 class="header" style="font-size: 18px;">Управление данными</h3>
-                         <button onclick="resetRoutines()" class="btn btn-secondary" style="width: 100%; padding: 12px; margin-bottom: 12px;">🗑️ Удалить все шаблоны</button>
-                         <button onclick="resetWo()" class="btn btn-secondary" style="width: 100%; padding: 12px; margin-bottom: 12px;">🗑️ Удалить все тренировки</button>
-                         <button onclick="resetEx()" class="btn btn-danger" style="width: 100%; padding: 12px; margin-bottom: 12px;">🗑️ Удалить все упражнения</button>
-                         <button onclick="resetAll()" class="btn btn-danger" style="width: 100%; padding: 12px;">⚠️ СБРОСИТЬ ВСЁ</button>
+                         <button onclick="resetRoutines()" class="btn btn-secondary" style="width: 100%; padding: 14px; margin-bottom: 12px;">🗑️ Удалить все шаблоны</button>
+                         <button onclick="resetWo()" class="btn btn-secondary" style="width: 100%; padding: 14px; margin-bottom: 12px;">🗑️ Удалить все тренировки</button>
+                         <button onclick="resetEx()" class="btn btn-danger" style="width: 100%; padding: 14px; margin-bottom: 12px;">🗑️ Удалить все упражнения</button>
+                         <button onclick="resetAll()" class="btn btn-danger" style="width: 100%; padding: 14px;">⚠️ СБРОСИТЬ ВСЁ</button>
                      </div>
                      <div class="card">
                         <h3 class="header" style="font-size: 18px;">О приложении</h3>
-                        <p style="color: #666; font-size: 14px;">💪 Трекер Тренировок **v2.4** (Minimalism)<br>Все данные хранятся локально</p>
+                        <p style="color: #cbd5e1; font-size: 14px;">💪 Трекер Тренировок **v2.5** (Premium)<br>Все данные хранятся локально</p>
                      </div>`;
             return h;
         }

@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* --- ДИЗАЙН "PREMIUM" (v2.6) --- */
+        /* --- ДИЗАЙН "PREMIUM" (v2.7 - Animations) --- */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
@@ -18,7 +18,8 @@
             overflow-x: hidden; 
         }
         .fade-in { 
-            animation: fadeInUp 0.6s ease forwards; 
+            /* ИСПРАВЛЕНИЕ 1: Анимация ускорена с 0.6s до 0.4s */
+            animation: fadeInUp 0.4s ease forwards; 
             opacity: 0; 
             transform: translateY(20px); 
         }
@@ -154,7 +155,6 @@
         }
         .hide { display: none; }
         
-        /* --- Добавленные/адаптированные стили --- */
         input[type="text"], input[type="date"], input[type="number"], select { 
             width: 100%; 
             padding: 14px; 
@@ -177,10 +177,13 @@
             border-radius: 10px; 
             margin-bottom: 8px; 
             cursor: pointer; 
-            transition: background 0.2s ease;
+            transition: all 0.2s ease; /* ДОБАВЛЕНО: Плавный переход для hover */
         }
+        /* ДОБАВЛЕНО: Hover-эффект для списков */
         .exercise-item:hover {
             background: rgba(255,255,255,0.12);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
         .delete-btn { 
             background: none; 
@@ -298,12 +301,12 @@
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255,255,255,0.08);
-            animation: toast-in 0.3s ease-out;
+            animation: toast-in 0.4s ease-out; /* Ускорена */
             width: 100%;
         }
-        @keyframes toast-in {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
+        @keyframes toast-out {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-20px); }
         }
         .toast-content { flex-grow: 1; }
         .toast-title { font-weight: 600; margin-bottom: 2px; }
@@ -343,7 +346,7 @@
         let selectedDate = new Date().toISOString().split('T')[0];
         let currentWorkout = [];
         let selExId = null; 
-        let exStatsBackView = 'stats'; // <-- ИСПРАВЛЕНИЕ 1: Новая переменная
+        let exStatsBackView = 'stats';
         let currentViewDate = new Date(); 
         let selExIdHome = null; 
         let selectedExIdEdit = null; 
@@ -394,7 +397,6 @@
 
         function init() {
             try {
-                // ИСПРАВЛЕНИЕ 3: Настройки для графиков
                 Chart.defaults.color = '#cbd5e1';
                 Chart.defaults.borderColor = 'rgba(255,255,255,0.1)';
 
@@ -442,7 +444,7 @@
         }
 
         function importData() {
-            if (!confirm('Внимание! Импорт заменит ВСЕ текущие данные (упражнения, тренировки и шаблоны). Продолжить?')) {
+            if (!confirm('Внимание! Импорт заменит ВСЕ текущие данные. Продолжить?')) {
                 return;
             }
             const input = document.createElement('input');
@@ -647,9 +649,10 @@
             const todayDateStr = new Date().toISOString().split('T')[0]; 
             const today = workouts.find(w => w.date === todayDateStr); 
             
+            // ИСПРАВЛЕНИЕ 1: Уменьшены задержки
             let h = `
-                <div class="header fade-in" style="animation-delay: 0.1s;">💪 Трекер тренировок</div>
-                <div class="card stat-grid fade-in" style="animation-delay: 0.2s;">
+                <div class="header fade-in" style="animation-delay: 0.05s;">💪 Трекер тренировок</div>
+                <div class="card stat-grid fade-in" style="animation-delay: 0.1s;">
                     <div class="stat-item">
                         <p>Дни 🔥</p>
                         <p>${dayStreak}</p>
@@ -665,24 +668,24 @@
                 </div>
 
                 <div class="btn-grid">
-                    <button class="btn fade-in" style="animation-delay: 0.3s;" onclick="go('newWorkout')">➕ Новая</button>
-                    <button class="btn fade-in" style="animation-delay: 0.4s;" onclick="go('exercises')">🏋️ Упражнения</button>
-                    <button class="btn fade-in" style="animation-delay: 0.5s;" onclick="go('routines')">📋 Шаблоны</button>
-                    <button class="btn fade-in" style="animation-delay: 0.6s;" onclick="go('calendar')">📅 Календарь</button>
+                    <button class="btn fade-in" style="animation-delay: 0.15s;" onclick="go('newWorkout')">➕ Новая</button>
+                    <button class="btn fade-in" style="animation-delay: 0.2s;" onclick="go('exercises')">🏋️ Упражнения</button>
+                    <button class="btn fade-in" style="animation-delay: 0.25s;" onclick="go('routines')">📋 Шаблоны</button>
+                    <button class="btn fade-in" style="animation-delay: 0.3s;" onclick="go('calendar')">📅 Календарь</button>
                 </div>
                 
-                <button class="btn btn-secondary fade-in" style="width:100%; margin-top:16px; animation-delay:0.7s;" onclick="go('stats')">📊 Статистика</button>
-                <button class="btn btn-secondary fade-in" style="width:100%; margin-top:8px; animation-delay:0.8s;" onclick="go('settings')">⚙️ Настройки</button>
+                <button class="btn btn-secondary fade-in" style="width:100%; margin-top:16px; animation-delay:0.35s;" onclick="go('stats')">📊 Статистика</button>
+                <button class="btn btn-secondary fade-in" style="width:100%; margin-top:8px; animation-delay:0.4s;" onclick="go('settings')">⚙️ Настройки</button>
             `;
 
             if (today) {
                 h += `
-                <div class="card fade-in" style="margin-top: 20px; animation-delay: 1s;">
+                <div class="card fade-in" style="margin-top: 20px; animation-delay: 0.45s;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <h3 style="margin: 0; font-size: 18px;" class="header">Сегодня</h3>
                         <button onclick="editToday()" class="save-btn" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); box-shadow: 0 3px 8px rgba(99,102,241,0.3); padding: 8px 12px; font-size: 16px;">✏️</button>
                     </div>`;
-                today.exercises.forEach(ex => {
+                today.exercises.forEach((ex, index) => { // Добавлен index
                     const e = exercises.find(e => e.id === ex.exerciseId);
                     const t = e ? e.type : 'reps';
                     const totalReps = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
@@ -694,8 +697,9 @@
                     else if (t === 'time') d = `${ex.sets.length} подходов • ${Math.round(totalReps)} мин`;
                     else d = `${ex.sets.length} подходов • ${totalReps} повторений`;
                     
-                    h += `<div style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.08); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="viewHomeExDetail('${ex.exerciseId}')">
-                        <div>
+                    // ДОБАВЛЕНО: Анимация для списка
+                    h += `<div class="fade-in" style="animation-delay: ${index * 0.05}s; border-bottom: 1px solid rgba(255,255,255,0.08); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="viewHomeExDetail('${ex.exerciseId}')">
+                        <div style="padding: 12px 0;">
                             <div style="font-weight: 600; color: #f8fafc;">${ex.exerciseName}</div>
                             <div style="color: #cbd5e1; font-size: 14px;">${d}</div>
                         </div>
@@ -718,18 +722,19 @@
             const t = eBase ? eBase.type : 'reps';
             const maxVol = getMaxSetVolume(ex.exerciseId);
 
-            let h = `<div class="top-bar">
+            let h = `<div class="top-bar fade-in">
                         <button class="back-btn" onclick="go('home')">←</button>
                         <h2 class="header" style="margin-bottom: 0; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ex.exerciseName}</h2>
                         <div style="width: 40px;"></div>
                      </div>`;
-            h += `<div class="card">`;
-            ex.sets.forEach(set => {
+            h += `<div class="card fade-in" style="animation-delay: 0.1s;">`;
+            ex.sets.forEach((set, index) => { // Добавлен index
                 const setVol = calculateSetVolume(set, t);
                 const isPR = (setVol > 0 && Math.abs(setVol - maxVol) < 0.01); 
                 const prLabel = isPR ? ' <span style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">🔥 PR</span>' : '';
 
-                h += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 4px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+                // ДОБАВЛЕНО: Анимация для списка
+                h += `<div class="fade-in" style="animation-delay: ${index * 0.05}s; display: flex; justify-content: space-between; align-items: center; padding: 12px 4px; border-bottom: 1px solid rgba(255,255,255,0.08);">
                     <span style="font-weight: 600; color: #cbd5e1;">Подход ${set.setNumber}</span>
                     <span style="color: #f8fafc; font-size: 16px; font-weight: 500;">`;
                 if (t === 'weight') h += `${set.weight || 0} кг × ${set.reps || 0} повт${prLabel}`;
@@ -768,12 +773,12 @@
             if (startDayOfWeek === 0) startDayOfWeek = 7; 
             const paddingDays = startDayOfWeek - 1; 
             const monthName = currentViewDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
-            let h = `<div class="top-bar">
+            let h = `<div class="top-bar fade-in">
                         <button class="back-btn" onclick="go('home')">←</button>
                         <h2 class="header" style="margin-bottom: 0;">Календарь</h2>
                         <div style="width: 40px;"></div>
                      </div>
-                     <div class="card">
+                     <div class="card fade-in" style="animation-delay: 0.1s;">
                         <div class="month-nav">
                             <button onclick="changeMonth(-1)">‹ Пред.</button>
                             <h3>${monthName}</h3>
@@ -806,19 +811,19 @@
             if (!wo) return go('calendar');
             const totalVolume = calculateWorkoutVolume(wo);
 
-            let h = `<div class="top-bar">
+            let h = `<div class="top-bar fade-in">
                         <button class="back-btn" onclick="go('calendar')">←</button>
                         <h2 class="header" style="margin-bottom: 0;">Тренировка</h2>
                         <button onclick="editWorkout('${selectedDate}')" class="btn" style="padding: 10px 18px; font-size: 16px;">✏️</button>
                      </div>
-                     <div class="card">
+                     <div class="card fade-in" style="animation-delay: 0.1s;">
                         <h3 style="margin-bottom: 8px; font-size: 16px; color: #cbd5e1;">${new Date(selectedDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}</h3>
                         <p style="font-size: 24px; font-weight: 600;">Объем: ${totalVolume} ед.</p>
                      </div>
-                     <div class="card">
+                     <div class="card fade-in" style="animation-delay: 0.2s;">
                         <h3 class="header" style="font-size: 18px; margin-bottom: 16px;">Упражнения</h3>`;
             
-            wo.exercises.forEach(ex => {
+            wo.exercises.forEach((ex, index) => { // Добавлен index
                 const eBase = exercises.find(e => e.id === ex.exerciseId);
                 const t = eBase ? eBase.type : 'reps';
                 const totalReps = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
@@ -847,7 +852,8 @@
                     setsHTML += `</span></div>`;
                 });
                 
-                h += `<div style="margin-bottom: 16px;">
+                // ДОБАВЛЕНО: Анимация для списка
+                h += `<div class="fade-in" style="animation-delay: ${index * 0.05}s; margin-bottom: 16px;">
                     <div style="font-weight: 600; padding: 8px 0; color: #f8fafc;">${ex.exerciseName}</div>
                     <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 8px;">${d}</div>
                     <div style="background: rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 4px;">${setsHTML}</div>
@@ -923,12 +929,12 @@
             else if (ex.type === 'time') { ul = 'Минуты'; us = 'мин'; }
             else { ul = 'Повторения'; us = 'повт'; }
 
-            let h = `<div class="top-bar">
+            let h = `<div class="top-bar fade-in">
                     <button class="back-btn" onclick="go('${exStatsBackView}')">←</button>
                     <h2 class="header" style="margin-bottom: 0; max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${ex.name}</h2>
                     <div style="width: 40px;"></div>
                 </div>
-                <div class="card">
+                <div class="card fade-in" style="animation-delay: 0.1s;">
                     <h3 class="header" style="font-size: 18px;">Общая статистика</h3>
                     <div class="stat-grid" style="grid-template-columns: repeat(2, 1fr); gap: 12px;">
                         <div class="stat-item"><p>Тренировок</p><p>${exWo.length}</p></div>
@@ -945,7 +951,7 @@
             
             h += '</div></div>';
 
-            if (!exWo.length) h += '<div class="empty-state"><div style="font-size: 48px;">📊</div><p>Нет данных</p></div>';
+            if (!exWo.length) h += '<div class="empty-state fade-in"><div style="font-size: 48px;">📊</div><p>Нет данных</p></div>';
             else {
                 const wd = [];
                 const today = new Date();
@@ -963,7 +969,7 @@
                 const wt = wd.reduce((s, d) => s + d.reps, 0);
                 const ws = wd.reduce((s, d) => s + d.sets, 0);
 
-                h += `<div class="card"><h3 class="header" style="font-size: 18px;">Последние 7 дней</h3>
+                h += `<div class="card fade-in" style="animation-delay: 0.2s;"><h3 class="header" style="font-size: 18px;">Последние 7 дней</h3>
                     <canvas id="wc"></canvas>
                     <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
                     <div class="stat-grid" style="grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -986,7 +992,7 @@
                 }
                 const mt = md.reduce((s, d) => s + d.reps, 0);
 
-                h += `<div class="card"><h3 class="header" style="font-size: 18px;">Последние 30 дней</h3>
+                h += `<div class="card fade-in" style="animation-delay: 0.3s;"><h3 class="header" style="font-size: 18px;">Последние 30 дней</h3>
                     <canvas id="mc"></canvas>
                     <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center;">
                     <p style="font-size: 12px; color: #cbd5e1;">Всего ${ul.toLowerCase()} за месяц</p>
@@ -1001,7 +1007,6 @@
                     workouts.forEach(w => {
                         const d = new Date(w.date);
                         if (d >= ms && d <= me) {
-                            // ИСПРАВЛЕНИЕ 2: Было 'wo.exercises', стало 'w.exercises'
                             const e = w.exercises.find(e => e.exerciseId === ex.id); 
                             if (e) { s += e.sets.length; r += e.sets.reduce((sum, set) => sum + (set.reps || 0), 0); }
                         }
@@ -1010,7 +1015,7 @@
                 }
                 const yt = yd.reduce((s, d) => s + d.reps, 0);
                 const ys = yd.reduce((s, d) => s + d.sets, 0);
-                h += `<div class="card"><h3 class="header" style="font-size: 18px;">Последние 12 месяцев</h3>
+                h += `<div class="card fade-in" style="animation-delay: 0.4s;"><h3 class="header" style="font-size: 18px;">Последние 12 месяцев</h3>
                     <canvas id="yc"></canvas>
                     <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
                     <div class="stat-grid" style="grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -1029,8 +1034,8 @@
         }
 
         function renderExercises() {
-            let h = `<div class="top-bar"><button class="back-btn" onclick="go('home')">←</button><h2 class="header" style="margin-bottom: 0;">Упражнения</h2><div style="width: 40px;"></div></div>
-                <div class="card"><input type="text" id="newEx" placeholder="Название упражнения" style="margin-bottom: 12px;">
+            let h = `<div class="top-bar fade-in"><button class="back-btn" onclick="go('home')">←</button><h2 class="header" style="margin-bottom: 0;">Упражнения</h2><div style="width: 40px;"></div></div>
+                <div class="card fade-in" style="animation-delay: 0.1s;"><input type="text" id="newEx" placeholder="Название упражнения" style="margin-bottom: 12px;">
                 <select id="exType" style="margin-bottom: 12px;">
                     <option value="reps">Повторения</option>
                     <option value="weight">Вес + повторения</option>
@@ -1039,12 +1044,12 @@
                 </select>
                 <button class="btn" style="width: 100%; padding: 14px;" onclick="addEx()">Добавить упражнение</button></div>`;
             
-            if (!exercises.length) h += '<div class="empty-state"><div style="font-size: 48px;">🏋️</div><p>Нет упражнений</p></div>';
-            else exercises.forEach(ex => {
+            if (!exercises.length) h += '<div class="empty-state fade-in"><div style="font-size: 48px;">🏋️</div><p>Нет упражнений</p></div>';
+            else exercises.forEach((ex, index) => { // Добавлен index
                 const tl = ex.type === 'weight' ? '🏋️ Вес' : ex.type === 'distance' ? '🚴 Км' : ex.type === 'time' ? '⏱️ Время' : '🔢 Повт';
                 
-                // ИСПРАВЛЕНИЕ 1: Передаем 'exercises' в viewExStats
-                h += `<div class="exercise-item" onclick="viewExStats('${ex.id}', 'exercises')">
+                // ДОБАВЛЕНО: Анимация для списка
+                h += `<div class="exercise-item fade-in" style="animation-delay: ${index * 0.05 + 0.1}s" onclick="viewExStats('${ex.id}', 'exercises')">
                     <div>
                         <span style="font-weight: 600; color: #f8fafc;">${ex.name}</span>
                         <div style="font-size: 12px; color: #cbd5e1; margin-top: 2px;">${tl}</div>
@@ -1063,9 +1068,9 @@
             const ex = exercises.find(e => e.id === selectedExIdEdit);
             if (!ex) return go('exercises');
 
-            let h = `<div class="top-bar"><button class="back-btn" onclick="go('exercises')">←</button><h2 class="header" style="margin-bottom: 0;">Редактировать</h2>
+            let h = `<div class="top-bar fade-in"><button class="back-btn" onclick="go('exercises')">←</button><h2 class="header" style="margin-bottom: 0;">Редактировать</h2>
                 <button class="save-btn" onclick="saveEditEx()">Сохранить</button></div>
-                <div class="card">
+                <div class="card fade-in" style="animation-delay: 0.1s;">
                 <input type="text" id="editExName" value="${ex.name}" placeholder="Название упражнения" style="margin-bottom: 12px;">
                 <select id="editExType" style="margin-bottom: 12px;">
                     <option value="reps" ${ex.type === 'reps' ? 'selected' : ''}>Повторения</option>
@@ -1153,21 +1158,22 @@
         // --- ФУНКЦИИ ДЛЯ ШАБЛОНОВ ---
 
         function renderRoutines() {
-            let h = `<div class="top-bar">
+            let h = `<div class="top-bar fade-in">
                         <button class="back-btn" onclick="go('home')">←</button>
                         <h2 class="header" style="margin-bottom: 0;">Шаблоны</h2>
                         <div style="width: 40px;"></div>
                      </div>
-                     <div class="card">
+                     <div class="card fade-in" style="animation-delay: 0.1s;">
                         <input type="text" id="newRoutineName" placeholder="Название нового шаблона" style="margin-bottom: 12px;">
                         <button class="btn" style="width: 100%; padding: 14px;" onclick="addRoutine()">+ Создать шаблон</button>
                      </div>`;
 
             if (!routines.length) {
-                h += '<div class="empty-state"><div style="font-size: 48px;">📋</div><p>Нет сохраненных шаблонов</p></div>';
+                h += '<div class="empty-state fade-in"><div style="font-size: 48px;">📋</div><p>Нет сохраненных шаблонов</p></div>';
             } else {
-                routines.forEach(rt => {
-                    h += `<div class="exercise-item" onclick="editRoutine('${rt.id}')">
+                routines.forEach((rt, index) => { // Добавлен index
+                    // ДОБАВЛЕНО: Анимация для списка
+                    h += `<div class="exercise-item fade-in" style="animation-delay: ${index * 0.05 + 0.1}s" onclick="editRoutine('${rt.id}')">
                         <div>
                             <span style="font-weight: 600; color: #f8fafc;">${rt.name}</span>
                             <div style="font-size: 12px; color: #cbd5e1; margin-top: 2px;">Упражнений: ${rt.exercises.length}</div>
@@ -1214,12 +1220,12 @@
             
             currentWorkout = JSON.parse(JSON.stringify(rt.exercises)); 
 
-            let h = `<div class="top-bar">
+            let h = `<div class="top-bar fade-in">
                         <button class="back-btn" onclick="cancelRoutineEdit()">←</button>
                         <h2 class="header" style="margin-bottom: 0; max-width: 240px; overflow: hidden; text-overflow: ellipsis;">${rt.name}</h2>
                         <button class="save-btn" onclick="saveRoutine()">Сохранить</button>
                      </div>
-                     <div class="card">
+                     <div class="card fade-in" style="animation-delay: 0.1s;">
                         <h3 class="header" style="font-size: 16px;">Название</h3>
                         <input type="text" id="editRoutineName" value="${rt.name}" style="margin-bottom: 16px;">
                         <h3 class="header" style="font-size: 16px;">Упражнения в шаблоне</h3>
@@ -1228,8 +1234,9 @@
             if (currentWorkout.length === 0) {
                 h += `<div class="empty-state" style="padding: 20px;">Нажмите "Добавить упражнение"</div>`;
             } else {
-                currentWorkout.forEach(ex => {
-                    h += `<div class="exercise-item">
+                currentWorkout.forEach((ex, index) => { // Добавлен index
+                    // ДОБАВЛЕНО: Анимация для списка
+                    h += `<div class="exercise-item fade-in" style="animation-delay: ${index * 0.05}s">
                         <div style="font-weight: 600; color: #f8fafc;">${ex.exerciseName}</div>
                         <button class="delete-btn" onclick="removeExFromRoutine('${ex.exerciseId}')">🗑️</button>
                     </div>`;
@@ -1318,12 +1325,12 @@
 
 
         function renderNewWorkout() {
-            let h = `<div class="top-bar">
+            let h = `<div class="top-bar fade-in">
                         <button class="back-btn" onclick="cancelEdit()">←</button>
                         <h2 class="header" style="margin-bottom: 0;">${currentView === 'editWorkout' ? 'Редактировать' : 'Новая тренировка'}</h2>
                         <button class="save-btn" onclick="saveWorkout()">Сохранить</button>
                      </div>
-                     <div class="card">
+                     <div class="card fade-in" style="animation-delay: 0.1s;">
                         <h3 class="header" style="font-size: 16px;">Дата</h3>
                         <input type="date" id="workoutDate" value="${selectedDate}" onchange="selectedDate = this.value; render()" style="margin-bottom: 16px;">
                         
@@ -1343,7 +1350,7 @@
             if (currentWorkout.length === 0) {
                 h += `<div class="empty-state" style="padding: 20px;">Нажмите "Добавить упражнение"</div>`;
             } else {
-                currentWorkout.forEach((ex, index) => {
+                currentWorkout.forEach((ex, index) => { // Добавлен index
                     const eBase = exercises.find(e => e.id === ex.exerciseId);
                     const t = eBase ? eBase.type : 'reps';
                     const totalReps = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
@@ -1355,7 +1362,8 @@
                     else if (t === 'time') d = ` (${ex.sets.length} подх., ${Math.round(totalReps)} мин)`;
                     else d = ` (${ex.sets.length} подх., ${totalReps} повт)`;
 
-                    h += `<div class="exercise-item" onclick="viewWorkoutDetails('${ex.exerciseId}')">
+                    // ДОБАВЛЕНО: Анимация для списка
+                    h += `<div class="exercise-item fade-in" style="animation-delay: ${index * 0.05}s" onclick="viewWorkoutDetails('${ex.exerciseId}')">
                         <div>
                             <span style="font-weight: 600; color: #f8fafc;">${ex.exerciseName}</span>
                             <div style="font-size: 12px; color: #cbd5e1;">${d}</div>
@@ -1507,20 +1515,21 @@
             const t = eBase ? eBase.type : 'reps';
             const maxVol = getMaxSetVolume(ex.exerciseId); 
             
-            let h = `<div class="top-bar">
+            let h = `<div class="top-bar fade-in">
                         <button class="back-btn" onclick="go(currentView === 'editWorkout' ? 'editWorkout' : 'newWorkout')">←</button>
                         <h2 class="header" style="margin-bottom: 0; max-width: 240px; overflow: hidden; text-overflow: ellipsis;">${ex.exerciseName}</h2>
                         <div style="width: 40px;"></div>
                      </div>
-                     <div class="card">
+                     <div class="card fade-in" style="animation-delay: 0.1s;">
                         <h3 class="header" style="font-size: 18px; margin-bottom: 16px;">Подходы</h3>`;
             
-            ex.sets.forEach((set, index) => {
+            ex.sets.forEach((set, index) => { // Добавлен index
                 const setVol = calculateSetVolume(set, t);
                 const isPR = (setVol > 0 && Math.abs(setVol - maxVol) < 0.01); 
                 const prLabel = isPR ? ' <span style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">🔥 PR</span>' : '';
                 
-                h += `<div class="set-row">
+                // ДОБАВЛЕНО: Анимация для списка
+                h += `<div class="set-row fade-in" style="animation-delay: ${index * 0.05}s">
                         <span class="set-label">Подход ${index + 1}</span>
                         `;
                 
@@ -1591,16 +1600,16 @@
         }
 
         function renderStats() {
-            let h = `<div class="top-bar">
+            let h = `<div class="top-bar fade-in">
                         <button class="back-btn" onclick="go('home')">←</button>
                         <h2 class="header" style="margin-bottom: 0;">Статистика</h2>
                         <div style="width: 40px;"></div>
                      </div>
-                     <div class="card">
+                     <div class="card fade-in" style="animation-delay: 0.1s;">
                         <h3 class="header" style="font-size: 18px;">Упражнения</h3>`;
             
             if (!exercises.length) h += '<div class="empty-state" style="padding: 20px;">Нет упражнений для статистики.</div>';
-            else exercises.forEach(ex => {
+            else exercises.forEach((ex, index) => { // Добавлен index
                 const exWo = workouts.filter(w => w.exercises.some(e => e.exerciseId === ex.id));
                 const totalWorkouts = exWo.length;
                 
@@ -1625,8 +1634,8 @@
                     stats = `<div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Нет данных</div>`;
                 }
 
-                // ИСПРАВЛЕНИЕ 1: Передаем 'stats' в viewExStats
-                h += `<div class="exercise-item" onclick="viewExStats('${ex.id}', 'stats')">
+                // ДОБАВЛЕНО: Анимация для списка
+                h += `<div class="exercise-item fade-in" style="animation-delay: ${index * 0.05 + 0.1}s" onclick="viewExStats('${ex.id}', 'stats')">
                     <div>
                         <span style="font-weight: 600; color: #f8fafc;">${ex.name}</span>
                         <div style="font-size: 12px; color: #cbd5e1; margin-top: 2px;">Тренировок: ${totalWorkouts}</div>
@@ -1640,20 +1649,19 @@
             return h;
         }
 
-        // ИСПРАВЛЕНИЕ 1: Функция теперь принимает 'backView'
         function viewExStats(exId, backView = 'stats') {
             selExId = exId;
-            exStatsBackView = backView; // Сохраняем, куда возвращаться
+            exStatsBackView = backView;
             go('exerciseStats');
         }
 
         function renderSettings() {
-            let h = `<div class="top-bar">
+            let h = `<div class="top-bar fade-in">
                         <button class="back-btn" onclick="go('home')">←</button>
                         <h2 class="header" style="margin-bottom: 0;">Настройки</h2>
                         <div style="width: 40px;"></div>
                      </div>
-                     <div class="card">
+                     <div class="card fade-in" style="animation-delay: 0.1s;">
                         <h3 class="header" style="font-size: 18px;">Резервное копирование</h3>
                          <button onclick="exportData()" class="btn" style="width: 100%; padding: 14px; margin-bottom: 12px;">⬇️ Экспорт данных (.json)</button>
                          <button onclick="importData()" class="btn" style="width: 100%; padding: 14px; margin-bottom: 24px;">⬆️ Импорт данных (.json)</button>
@@ -1664,9 +1672,9 @@
                          <button onclick="resetEx()" class="btn btn-danger" style="width: 100%; padding: 14px; margin-bottom: 12px;">🗑️ Удалить все упражнения</button>
                          <button onclick="resetAll()" class="btn btn-danger" style="width: 100%; padding: 14px;">⚠️ СБРОСИТЬ ВСЁ</button>
                      </div>
-                     <div class="card">
+                     <div class="card fade-in" style="animation-delay: 0.2s;">
                         <h3 class="header" style="font-size: 18px;">О приложении</h3>
-                        <p style="color: #cbd5e1; font-size: 14px;">💪 Трекер Тренировок **v2.6** (Premium / Stats Fix)<br>Все данные хранятся локально</p>
+                        <p style="color: #cbd5e1; font-size: 14px;">💪 Трекер Тренировок **v2.7** (Animations)<br>Все данные хранятся локально</p>
                      </div>`;
             return h;
         }

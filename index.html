@@ -351,6 +351,8 @@
         let selExIdHome = null; 
         let selectedExIdEdit = null; 
         let selectedRoutineIdEdit = null; 
+        // ИЗМЕНЕНИЕ: Добавлена переменная для отслеживания экрана "назад"
+        let workoutBackView = 'home';
 
         function showToast(title, message, type = 'info', duration = 3000) {
             const container = document.getElementById('toast-container');
@@ -505,6 +507,8 @@
                  if (view === 'home') {
                     selectedDate = new Date().toISOString().split('T')[0]; 
                  }
+                 // ИЗМЕНЕНИЕ: Сбрасываем "назад" при переходе на главные экраны
+                 workoutBackView = 'home';
             }
             if (currentView !== 'editExercise') {
                 selectedExIdEdit = null;
@@ -524,6 +528,29 @@
         function viewHomeExDetail(exId) {
             selExIdHome = exId;
             go('homeExDetail');
+        }
+
+        // ИЗМЕНЕНИЕ: Новая функция для прямого редактирования упражнения с главного экрана
+        function editTodayExercise(exId) {
+            const todayDateStr = new Date().toISOString().split('T')[0];
+            const wo = workouts.find(w => w.date === todayDateStr);
+            if (!wo) {
+                console.error("Тренировка для 'сегодня' не найдена");
+                return; 
+            }
+
+            // Загружаем тренировку в редактор
+            selectedDate = todayDateStr;
+            currentWorkout = JSON.parse(JSON.stringify(wo.exercises));
+            
+            // Устанавливаем ID упражнения
+            selExId = exId;
+            
+            // Устанавливаем, что кнопка "назад" должна вести на 'home'
+            workoutBackView = 'home'; 
+            
+            // Переходим на экран редактирования подходов
+            go('workoutDetails');
         }
 
         function editEx(id) {
@@ -697,8 +724,8 @@
                     else if (t === 'time') d = `${ex.sets.length} подходов • ${Math.round(totalReps)} мин`;
                     else d = `${ex.sets.length} подходов • ${totalReps} повторений`;
                     
-                    // ДОБАВЛЕНО: Анимация для списка
-                    h += `<div class="fade-in" style="animation-delay: ${index * 0.05}s; border-bottom: 1px solid rgba(255,255,255,0.08); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="viewHomeExDetail('${ex.exerciseId}')">
+                    // ИЗМЕНЕНИЕ: onclick теперь ведет на editTodayExercise
+                    h += `<div class="fade-in" style="animation-delay: ${index * 0.05}s; border-bottom: 1px solid rgba(255,255,255,0.08); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="editTodayExercise('${ex.exerciseId}')">
                         <div style="padding: 12px 0;">
                             <div style="font-weight: 600; color: #f8fafc;">${ex.exerciseName}</div>
                             <div style="color: #cbd5e1; font-size: 14px;">${d}</div>
@@ -1362,8 +1389,8 @@
                     else if (t === 'time') d = ` (${ex.sets.length} подх., ${Math.round(totalReps)} мин)`;
                     else d = ` (${ex.sets.length} подх., ${totalReps} повт)`;
 
-                    // ДОБАВЛЕНО: Анимация для списка
-                    h += `<div class="exercise-item fade-in" style="animation-delay: ${index * 0.05}s" onclick="viewWorkoutDetails('${ex.exerciseId}')">
+                    // ИЗМЕНЕНИЕ: Передаем 'currentView' (newWorkout или editWorkout) в viewWorkoutDetails
+                    h += `<div class="exercise-item fade-in" style="animation-delay: ${index * 0.05}s" onclick="viewWorkoutDetails('${ex.exerciseId}', currentView)">
                         <div>
                             <span style="font-weight: 600; color: #f8fafc;">${ex.exerciseName}</span>
                             <div style="font-size: 12px; color: #cbd5e1;">${d}</div>
@@ -1500,8 +1527,10 @@
             render();
         }
 
-        function viewWorkoutDetails(exId) {
+        // ИЗМЕНЕНИЕ: Функция теперь принимает 'backView' для кнопки "назад"
+        function viewWorkoutDetails(exId, backView = 'newWorkout') {
             selExId = exId;
+            workoutBackView = backView; // Сохраняем, куда вернуться
             go('workoutDetails');
         }
 
@@ -1515,8 +1544,9 @@
             const t = eBase ? eBase.type : 'reps';
             const maxVol = getMaxSetVolume(ex.exerciseId); 
             
+            // ИЗМЕНЕНИЕ: Кнопка "назад" теперь использует 'workoutBackView'
             let h = `<div class="top-bar fade-in">
-                        <button class="back-btn" onclick="go(currentView === 'editWorkout' ? 'editWorkout' : 'newWorkout')">←</button>
+                        <button class="back-btn" onclick="go(workoutBackView)">←</button>
                         <h2 class="header" style="margin-bottom: 0; max-width: 240px; overflow: hidden; text-overflow: ellipsis;">${ex.exerciseName}</h2>
                         <div style="width: 40px;"></div>
                      </div>

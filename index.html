@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* --- ДИЗАЙН "PREMIUM" (v2.9 - Flexible Metrics) --- */
+        /* --- ДИЗАЙН "PREMIUM" (v2.8 - Fix Transparency) --- */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
@@ -403,47 +403,6 @@
             overflow-y: auto; 
             padding-right: 5px;
         }
-
-        /* --- СТИЛИ ДЛЯ КОНСТРУКТОРА УПРАЖНЕНИЙ --- */
-        .metric-selector {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-        .metric-chip {
-            padding: 10px 16px;
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            color: #cbd5e1;
-            transition: all 0.2s ease;
-            user-select: none;
-        }
-        .metric-chip.active {
-            background: #6366f1;
-            color: white;
-            border-color: #6366f1;
-            box-shadow: 0 2px 8px rgba(99,102,241,0.4);
-        }
-        .metric-chip:hover {
-            transform: translateY(-1px);
-        }
-        
-        /* Стиль для плавающего таймера */
-        .timer-overlay {
-            position: fixed; bottom: 20px; right: 20px;
-            background: #0f172a; border: 1px solid #6366f1;
-            border-radius: 50px; padding: 10px 20px;
-            display: flex; align-items: center; gap: 10px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            z-index: 3000; animation: fadeInUp 0.3s ease;
-        }
-        .timer-text { font-size: 18px; font-weight: bold; color: #fff; font-family: monospace; }
-        .timer-btn { background: none; border: none; color: #f43f5e; cursor: pointer; font-size: 16px; }
-
         /* --- КОНЕЦ СТИЛЕЙ --- */
     </style>
 </head>
@@ -496,77 +455,11 @@
         let selectedExIdEdit = null; 
         let selectedRoutineIdEdit = null; 
         let workoutBackView = 'home';
-        
-        // --- TIMER LOGIC ---
-        let timerInterval = null;
-        let timerSeconds = 0;
-
-        function startTimer(seconds) {
-            stopTimer();
-            timerSeconds = seconds;
-            renderTimer();
-            
-            timerInterval = setInterval(() => {
-                timerSeconds--;
-                if (timerSeconds <= 0) {
-                    stopTimer();
-                    showToast('Таймер', 'Время отдыха истекло!', 'success');
-                    if(window.Telegram?.WebApp?.HapticFeedback) {
-                        Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-                    }
-                } else {
-                    document.getElementById('timer-display').innerText = formatTime(timerSeconds);
-                }
-            }, 1000);
-        }
-
-        function stopTimer() {
-            if (timerInterval) clearInterval(timerInterval);
-            timerInterval = null;
-            const existing = document.getElementById('active-timer');
-            if (existing) existing.remove();
-        }
-
-        function formatTime(sec) {
-            const m = Math.floor(sec / 60);
-            const s = sec % 60;
-            return `${m}:${s < 10 ? '0' : ''}${s}`;
-        }
-
-        function renderTimer() {
-            if (!document.getElementById('active-timer')) {
-                const div = document.createElement('div');
-                div.id = 'active-timer';
-                div.className = 'timer-overlay';
-                div.innerHTML = `
-                    <span id="timer-display" class="timer-text">${formatTime(timerSeconds)}</span>
-                    <button class="timer-btn" onclick="stopTimer()">✖</button>
-                `;
-                document.body.appendChild(div);
-            }
-        }
-
-        // --- HELPER: Get Metrics from Exercise ---
-        // Превращает старые типы упражнений в новый массив метрик
-        function getExMetrics(ex) {
-            if (ex.metrics && Array.isArray(ex.metrics)) {
-                return ex.metrics;
-            }
-            // Совместимость со старыми данными
-            if (ex.type === 'weight') return ['weight', 'reps'];
-            if (ex.type === 'distance') return ['distance'];
-            if (ex.type === 'time') return ['time'];
-            return ['reps']; 
-        }
-        
-        function toggleMetric(el, type) {
-            el.classList.toggle('active');
-        }
 
         // --- ЛОГИКА SMART NUMPAD ---
         let npCurrentValue = '';
         let npTargetIndex = null;
-        let npTargetKey = null; // 'weight', 'reps', 'time', etc
+        let npTargetKey = null; // 'weight' or 'reps'
 
         function openNumpad(index, key, value) {
             npTargetIndex = index;
@@ -574,15 +467,8 @@
             npCurrentValue = (value === 0 || value === "0" || value === undefined) ? '' : value.toString();
             
             document.getElementById('np-display').innerText = npCurrentValue || '0';
-            let lbl = 'ЗНАЧЕНИЕ';
-            if(key === 'weight') lbl = 'ВЕС (КГ)';
-            if(key === 'reps') lbl = 'ПОВТОРЕНИЯ';
-            if(key === 'time') lbl = 'ВРЕМЯ (МИН)';
-            if(key === 'distance') lbl = 'ДИСТАНЦИЯ (КМ)';
+            document.getElementById('np-label').innerText = key === 'weight' ? 'ВЕС (КГ)' : (key === 'time' ? 'ВРЕМЯ (МИН)' : (key === 'distance' ? 'ДИСТАНЦИЯ (КМ)' : 'ПОВТОРЕНИЯ'));
             
-            document.getElementById('np-label').innerText = lbl;
-            
-            // Генерируем быстрые кнопки
             const qContainer = document.getElementById('quick-buttons');
             qContainer.innerHTML = '';
             
@@ -1328,37 +1214,25 @@
             return h;
         }
 
-        // --- НОВЫЙ РЕНДЕР СПИСКА УПРАЖНЕНИЙ (С ТЕГАМИ) ---
         function renderExercises() {
             let h = `<div class="top-bar fade-in"><button class="back-btn" onclick="go('home')">←</button><h2 class="header" style="margin-bottom: 0;">Упражнения</h2><div style="width: 40px;"></div></div>
-                <div class="card fade-in" style="animation-delay: 0.1s;">
-                    <h3 class="header" style="font-size: 16px;">Новое упражнение</h3>
-                    <input type="text" id="newEx" placeholder="Название (например, Жим лежа)" style="margin-bottom: 16px;">
-                    
-                    <div style="font-size: 14px; color: #cbd5e1; margin-bottom: 8px;">Что отслеживаем?</div>
-                    <div class="metric-selector" id="metric-selector">
-                        <div class="metric-chip active" onclick="toggleMetric(this, 'reps')">🔢 Повторения</div>
-                        <div class="metric-chip" onclick="toggleMetric(this, 'weight')">🏋️ Вес</div>
-                        <div class="metric-chip" onclick="toggleMetric(this, 'time')">⏱️ Время</div>
-                        <div class="metric-chip" onclick="toggleMetric(this, 'distance')">🚴 Дистанция</div>
-                    </div>
-
-                    <button class="btn" style="width: 100%; padding: 14px;" onclick="addEx()">Добавить упражнение</button>
-                </div>`;
+                <div class="card fade-in" style="animation-delay: 0.1s;"><input type="text" id="newEx" placeholder="Название упражнения" style="margin-bottom: 12px;">
+                <select id="exType" style="margin-bottom: 12px;">
+                    <option value="reps">Повторения</option>
+                    <option value="weight">Вес + повторения</option>
+                    <option value="distance">Расстояние (км)</option>
+                    <option value="time">Время (мин)</option>
+                </select>
+                <button class="btn" style="width: 100%; padding: 14px;" onclick="addEx()">Добавить упражнение</button></div>`;
             
             if (!exercises.length) h += '<div class="empty-state fade-in"><div style="font-size: 48px;">🏋️</div><p>Нет упражнений</p></div>';
             else exercises.forEach((ex, index) => {
-                const m = getExMetrics(ex);
-                let badges = '';
-                if(m.includes('weight')) badges += '🏋️ ';
-                if(m.includes('reps')) badges += '🔢 ';
-                if(m.includes('distance')) badges += '🚴 ';
-                if(m.includes('time')) badges += '⏱️ ';
-
+                const tl = ex.type === 'weight' ? '🏋️ Вес' : ex.type === 'distance' ? '🚴 Км' : ex.type === 'time' ? '⏱️ Время' : '🔢 Повт';
+                
                 h += `<div class="exercise-item fade-in" style="animation-delay: ${index * 0.05 + 0.1}s" onclick="viewExStats('${ex.id}', 'exercises')">
                     <div>
                         <span style="font-weight: 600; color: #f8fafc;">${ex.name}</span>
-                        <div style="font-size: 12px; color: #cbd5e1; margin-top: 2px;">${badges}</div>
+                        <div style="font-size: 12px; color: #cbd5e1; margin-top: 2px;">${tl}</div>
                     </div>
                     <div style="display: flex; gap: 12px; align-items: center;">
                         <button class="delete-btn" onclick="event.stopPropagation(); editEx('${ex.id}')" style="color: #6366f1; font-size: 20px;">✏️</button>
@@ -1374,15 +1248,16 @@
             const ex = exercises.find(e => e.id === selectedExIdEdit);
             if (!ex) return go('exercises');
 
-            // Для упрощения в режиме редактирования оставляем старый select,
-            // или можно просто удалить и пересоздать упражнение.
-            // Чтобы не усложнять код, оставим пока просто редактирование имени
-            
             let h = `<div class="top-bar fade-in"><button class="back-btn" onclick="go('exercises')">←</button><h2 class="header" style="margin-bottom: 0;">Редактировать</h2>
                 <button class="save-btn" onclick="saveEditEx()">Сохранить</button></div>
                 <div class="card fade-in" style="animation-delay: 0.1s;">
                 <input type="text" id="editExName" value="${ex.name}" placeholder="Название упражнения" style="margin-bottom: 12px;">
-                <p style="font-size:12px; color:#94a3b8; margin-bottom:12px;">Тип отслеживания нельзя изменить после создания.</p>
+                <select id="editExType" style="margin-bottom: 12px;">
+                    <option value="reps" ${ex.type === 'reps' ? 'selected' : ''}>Повторения</option>
+                    <option value="weight" ${ex.type === 'weight' ? 'selected' : ''}>Вес + повторения</option>
+                    <option value="distance" ${ex.type === 'distance' ? 'selected' : ''}>Расстояние (км)</option>
+                    <option value="time" ${ex.type === 'time' ? 'selected' : ''}>Время (мин)</option>
+                </select>
                 <button class="btn btn-danger" style="width: 100%; padding: 14px;" onclick="delEx('${ex.id}', true)">🗑️ Удалить упражнение</button>
             </div>`;
             return h;
@@ -1394,14 +1269,14 @@
             if (exIndex === -1) return;
 
             const newName = document.getElementById('editExName').value.trim();
+            const newType = document.getElementById('editExType').value;
 
             if (!newName) {
                 showToast('Ошибка', 'Название не может быть пустым', 'error');
                 return;
             }
 
-            // Сохраняем только имя, тип не меняем чтобы не ломать историю
-            exercises[exIndex].name = newName;
+            exercises[exIndex] = { ...exercises[exIndex], name: newName, type: newType };
 
             workouts.forEach(wo => {
                 wo.exercises.forEach(woEx => {
@@ -1442,37 +1317,14 @@
             }
         }
 
-        // --- НОВАЯ ФУНКЦИЯ ДОБАВЛЕНИЯ (С ЧИПАМИ) ---
         function addEx() {
             const inp = document.getElementById('newEx');
-            const selector = document.getElementById('metric-selector');
-            
-            const activeChips = selector.querySelectorAll('.metric-chip.active');
-            let selectedMetrics = [];
-            
-            activeChips.forEach(chip => {
-                if(chip.innerText.includes('Вес')) selectedMetrics.push('weight');
-                if(chip.innerText.includes('Повторения')) selectedMetrics.push('reps');
-                if(chip.innerText.includes('Время')) selectedMetrics.push('time');
-                if(chip.innerText.includes('Дистанция')) selectedMetrics.push('distance');
-            });
-
+            const typ = document.getElementById('exType');
             if (inp.value.trim()) {
-                if (selectedMetrics.length === 0) {
-                    showToast('Ошибка', 'Выберите хотя бы одну метрику', 'error');
-                    return;
-                }
-                
-                // Определяем основной тип для совместимости
-                let mainType = 'custom';
-                if (selectedMetrics.length === 1) mainType = selectedMetrics[0];
-                else if (selectedMetrics.includes('weight')) mainType = 'weight'; // fallback for charts
-
                 exercises.push({
                     id: Date.now().toString(),
                     name: inp.value.trim(),
-                    type: mainType, 
-                    metrics: selectedMetrics, 
+                    type: typ.value,
                     createdAt: new Date().toISOString()
                 });
                 save();
@@ -1574,7 +1426,7 @@
                 <button class="btn btn-danger" style="width: 100%; padding: 14px; margin-top: 12px;" onclick="delRoutine('${rt.id}')">🗑️ Удалить шаблон</button>
             </div>`;
 
-            // Модальное окно выбора упражнений
+            // ИСПРАВЛЕНО: Используем .modal-overlay и .modal-box
             h += `<div id="addExModal" class="modal-overlay hide">
                 <div class="modal-box">
                     <h3 class="header" style="font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 10px;">Выберите упражнение</h3>
@@ -1705,7 +1557,7 @@
                 <button class="btn" style="width: 100%; padding: 14px; margin-top: 16px;" onclick="document.getElementById('addExModal').classList.remove('hide')">Добавить упражнение</button>
             </div>`;
 
-            // Модальное окно выбора упражнений (SOLID STYLE)
+            // ИСПРАВЛЕНО: Используем .modal-overlay и .modal-box (SOLID Background)
             h += `<div id="addExModal" class="modal-overlay hide">
                 <div class="modal-box">
                     <h3 class="header" style="font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 10px;">Выберите упражнение</h3>
@@ -1788,7 +1640,7 @@
             }
 
             const validWorkout = currentWorkout.filter(ex => 
-                ex.sets.some(set => (set.reps > 0) || (set.weight > 0) || (set.time > 0) || (set.distance > 0))
+                ex.sets.some(set => (set.reps > 0) || (set.weight > 0))
             );
 
             if (validWorkout.length === 0) {
@@ -1845,7 +1697,6 @@
             }
         }
 
-        // --- НОВАЯ ДИНАМИЧЕСКАЯ ОТРИСОВКА ИНПУТОВ ---
         function renderWorkoutDetails() {
             if (!selExId) return go('newWorkout');
             const exIndex = currentWorkout.findIndex(ex => ex.exerciseId === selExId);
@@ -1853,8 +1704,7 @@
             
             const ex = currentWorkout[exIndex];
             const eBase = exercises.find(e => e.id === ex.exerciseId);
-            
-            const metrics = eBase ? getExMetrics(eBase) : ['reps'];
+            const t = eBase ? eBase.type : 'reps';
             const maxVol = getMaxSetVolume(ex.exerciseId); 
             
             let h = `<div class="top-bar fade-in">
@@ -1865,7 +1715,7 @@
                      <div class="card fade-in" style="animation-delay: 0.1s;">
                         <h3 class="header" style="font-size: 18px; margin-bottom: 16px;">Подходы</h3>`;
             
-            // Helper для создания readonly-инпутов
+            // Хелпер для создания readonly-инпутов, вызывающих нампад
             const makeInput = (index, key, val, placeholder, width = 'flex: 1') => {
                 return `<input type="text" readonly value="${val || ''}" 
                         onclick="openNumpad(${index}, '${key}', '${val || 0}')" 
@@ -1874,77 +1724,53 @@
             };
 
             ex.sets.forEach((set, index) => {
-                const setVol = calculateSetVolume(set, eBase ? eBase.type : 'reps');
+                const setVol = calculateSetVolume(set, t);
                 const isPR = (setVol > 0 && Math.abs(setVol - maxVol) < 0.01); 
-                const prLabel = isPR ? ' <span style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">🔥</span>' : '';
+                const prLabel = isPR ? ' <span style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">🔥 PR</span>' : '';
                 
                 h += `<div class="set-row fade-in" style="animation-delay: ${index * 0.05}s">
-                        <span class="set-label" style="width: 25px;">#${index + 1}</span>`;
+                        <span class="set-label">Подход ${index + 1}</span>`;
                 
-                if (metrics.includes('weight')) {
-                    h += `${makeInput(index, 'weight', set.weight, 'Вес (кг)')}<div style="width: 6px;"></div>`;
+                if (t === 'weight') {
+                    h += `${makeInput(index, 'weight', set.weight, 'Вес (кг)')}
+                          <div style="width: 8px;"></div>
+                          ${makeInput(index, 'reps', set.reps, 'Повт', 'width: 80px')}
+                          <button class="delete-btn" onclick="deleteSet(${index})" style="width: 36px; padding: 0;">🗑️</button>
+                          ${prLabel}`;
+                } else if (t === 'distance') {
+                     h += `${makeInput(index, 'distance', set.reps, 'Км')}
+                           <button class="delete-btn" onclick="deleteSet(${index})" style="width: 36px; padding: 0;">🗑️</button>
+                           ${prLabel}`;
+                } else if (t === 'time') {
+                     h += `${makeInput(index, 'time', set.reps, 'Мин')}
+                           <button class="delete-btn" onclick="deleteSet(${index})" style="width: 36px; padding: 0;">🗑️</button>
+                           ${prLabel}`;
+                } else { // reps
+                     h += `${makeInput(index, 'reps', set.reps, 'Повторений')}
+                           <button class="delete-btn" onclick="deleteSet(${index})" style="width: 36px; padding: 0;">🗑️</button>
+                           ${prLabel}`;
                 }
-                
-                if (metrics.includes('reps')) {
-                    h += `${makeInput(index, 'reps', set.reps, 'Повт', 'width: 70px')}<div style="width: 6px;"></div>`;
-                }
-                
-                if (metrics.includes('distance')) {
-                    const val = (metrics.length === 1 && metrics[0] === 'distance') ? set.reps : (set.distance || 0);
-                    h += `${makeInput(index, 'distance', val, 'Км')}<div style="width: 6px;"></div>`;
-                }
-                
-                if (metrics.includes('time')) {
-                    const val = (metrics.length === 1 && metrics[0] === 'time') ? set.reps : (set.time || 0);
-                    h += `${makeInput(index, 'time', val, 'Мин')}<div style="width: 6px;"></div>`;
-                }
-
-                h += `<button class="delete-btn" onclick="deleteSet(${index})" style="width: 30px; padding: 0;">🗑️</button>
-                      ${prLabel}
-                      </div>`;
+                h += `</div>`;
             });
             
             h += `<button class="save-btn" style="width: 100%; padding: 14px; margin-top: 16px;" onclick="addSet()">+ Добавить подход</button>
                      </div>`;
-            
-            h += `<div style="display: flex; gap: 10px; margin-top: 10px; justify-content: center;">
-                <button class="btn btn-secondary" style="padding: 8px;" onclick="startTimer(60)">⏱ 60с</button>
-                <button class="btn btn-secondary" style="padding: 8px;" onclick="startTimer(90)">⏱ 90с</button>
-                <button class="btn btn-secondary" style="padding: 8px;" onclick="startTimer(120)">⏱ 120с</button>
-            </div>`;
-            
             return h;
         }
 
-        // --- ОБНОВЛЕННАЯ ФУНКЦИЯ UPDATE SET ---
         function updateSet(index, key, value) {
             const exIndex = currentWorkout.findIndex(ex => ex.exerciseId === selExId);
             if (exIndex === -1) return;
             
             const numVal = parseFloat(value);
+
             if (!currentWorkout[exIndex].sets[index]) {
                 currentWorkout[exIndex].sets[index] = { setNumber: index + 1 };
+                if (key === 'weight') currentWorkout[exIndex].sets[index].reps = 0;
             }
-
-            const eBase = exercises.find(e => e.id === selExId);
-            const metrics = getExMetrics(eBase);
-
-            if (key === 'distance') {
-                // Если только дистанция, сохраняем в reps (для совместимости графиков)
-                if (metrics.length === 1 && metrics[0] === 'distance') {
-                    currentWorkout[exIndex].sets[index].reps = isNaN(numVal) ? 0 : numVal;
-                } else {
-                    currentWorkout[exIndex].sets[index].distance = isNaN(numVal) ? 0 : numVal;
-                }
-            } 
-            else if (key === 'time') {
-                if (metrics.length === 1 && metrics[0] === 'time') {
-                    currentWorkout[exIndex].sets[index].reps = isNaN(numVal) ? 0 : numVal;
-                } else {
-                    currentWorkout[exIndex].sets[index].time = isNaN(numVal) ? 0 : numVal;
-                }
-            }
-            else {
+            if(key === 'distance' || key === 'time') {
+                currentWorkout[exIndex].sets[index].reps = isNaN(numVal) ? 0 : numVal;
+            } else {
                 currentWorkout[exIndex].sets[index][key] = isNaN(numVal) ? 0 : numVal;
             }
         }
@@ -1953,9 +1779,13 @@
             const exIndex = currentWorkout.findIndex(ex => ex.exerciseId === selExId);
             if (exIndex === -1) return;
             const setNumber = currentWorkout[exIndex].sets.length + 1;
-            
-            // Создаем пустой сет
             const newSet = { setNumber: setNumber, reps: 0 };
+            const eBase = exercises.find(e => e.id === selExId);
+            const t = eBase ? eBase.type : 'reps';
+            if (t === 'weight') {
+                newSet.weight = 0;
+                newSet.reps = 0;
+            }
             currentWorkout[exIndex].sets.push(newSet);
             render();
         }
@@ -2044,9 +1874,55 @@
                      </div>
                      <div class="card fade-in" style="animation-delay: 0.2s;">
                         <h3 class="header" style="font-size: 18px;">О приложении</h3>
-                        <p style="color: #cbd5e1; font-size: 14px;">💪 Трекер Тренировок **v2.9** (Flexible)<br>Все данные хранятся локально</p>
+                        <p style="color: #cbd5e1; font-size: 14px;">💪 Трекер Тренировок **v2.7** (Animations)<br>Все данные хранятся локально</p>
                      </div>`;
             return h;
         }
         
         function resetRoutines() {
+            if (confirm('Удалить ВСЕ шаблоны?')) {
+                routines = [];
+                save();
+                showToast('Удалено', 'Все шаблоны удалены', 'error');
+                render();
+            }
+        }
+
+        function resetWo() {
+            if (confirm('Удалить ВСЕ тренировки?')) {
+                workouts = [];
+                save();
+                showToast('Удалено', 'Все тренировки удалены', 'error');
+                render();
+            }
+        }
+
+        function resetEx() {
+            if (confirm('Удалить ВСЕ упражнения, тренировки и шаблоны?')) {
+                exercises = [];
+                workouts = [];
+                routines = [];
+                save();
+                showToast('Удалено', 'Все упражнения, тренировки и шаблоны удалены', 'error');
+                render();
+            }
+        }
+
+        function resetAll() {
+            if (confirm('⚠️ УДАЛИТЬ ВСЕ ДАННЫЕ?')) {
+                if (confirm('Точно? Последнее предупреждение!')) {
+                    exercises = [];
+                    workouts = [];
+                    routines = [];
+                    currentWorkout = [];
+                    localStorage.clear();
+                    showToast('Сброс', 'Все данные сброшены. Перезагрузите страницу.', 'error', 5000);
+                    render();
+                }
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -18,7 +18,6 @@
             overflow-x: hidden; 
         }
         .fade-in { 
-            /* ИСПРАВЛЕНИЕ 1: Анимация ускорена с 0.6s до 0.4s */
             animation: fadeInUp 0.4s ease forwards; 
             opacity: 0; 
             transform: translateY(20px); 
@@ -153,7 +152,7 @@
             color: #94a3b8; 
             padding: 40px 0; 
         }
-        .hide { display: none; }
+        .hide { display: none !important; }
         
         input[type="text"], input[type="date"], input[type="number"], select { 
             width: 100%; 
@@ -177,9 +176,8 @@
             border-radius: 10px; 
             margin-bottom: 8px; 
             cursor: pointer; 
-            transition: all 0.2s ease; /* ДОБАВЛЕНО: Плавный переход для hover */
+            transition: all 0.2s ease; 
         }
-        /* ДОБАВЛЕНО: Hover-эффект для списков */
         .exercise-item:hover {
             background: rgba(255,255,255,0.12);
             transform: translateY(-2px);
@@ -301,7 +299,7 @@
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255,255,255,0.08);
-            animation: toast-in 0.4s ease-out; /* Ускорена */
+            animation: toast-in 0.4s ease-out; 
             width: 100%;
         }
         @keyframes toast-out {
@@ -328,6 +326,62 @@
             background: linear-gradient(135deg, #f43f5e, #e11d48);
             box-shadow: 0 4px 12px rgba(244,63,94,0.3);
         }
+
+        /* --- SMART NUMPAD STYLES --- */
+        .numpad-overlay {
+            position: fixed; bottom: 0; left: 0; right: 0; top: 0;
+            background: rgba(0,0,0,0.6); z-index: 4000;
+            display: flex; flex-direction: column; justify-content: flex-end;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .numpad-overlay.active { opacity: 1; pointer-events: all; }
+        .numpad-container {
+            background: #1e293b;
+            border-top-left-radius: 20px; border-top-right-radius: 20px;
+            padding: 20px; padding-bottom: 40px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .numpad-overlay.active .numpad-container { transform: translateY(0); }
+
+        .numpad-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
+        .numpad-display {
+            font-size: 32px; font-weight: bold; color: #fff;
+            text-align: right; flex-grow: 1; margin-right: 20px;
+            font-family: monospace; letter-spacing: 2px;
+        }
+        .numpad-label { font-size: 14px; color: #94a3b8; text-transform: uppercase; font-weight: 600; }
+
+        .numpad-body { display: grid; grid-template-columns: 3fr 1fr; gap: 16px; }
+
+        .numpad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .num-btn {
+            background: rgba(255,255,255,0.05); border: none; color: #f8fafc;
+            font-size: 22px; font-weight: 500; border-radius: 12px; padding: 16px 0;
+            cursor: pointer; transition: background 0.1s;
+        }
+        .num-btn:active { background: rgba(255,255,255,0.15); transform: scale(0.95); }
+
+        .quick-grid { display: flex; flex-direction: column; gap: 10px; }
+        .quick-btn {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white; border: none; border-radius: 12px;
+            font-size: 14px; font-weight: 600; flex: 1;
+            cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .quick-btn:active { transform: scale(0.95); }
+        .quick-btn.reps { background: linear-gradient(135deg, #10b981, #059669); }
+
+        .action-btn { grid-column: span 1; background: rgba(244, 63, 94, 0.2); color: #f43f5e; }
+        .done-btn {
+            grid-column: span 3; background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white; font-weight: bold; margin-top: 10px;
+        }
         /* --- КОНЕЦ СТИЛЕЙ --- */
     </style>
 </head>
@@ -338,6 +392,34 @@
     
     <div id="toast-container"></div>
     
+    <div id="numpad-modal" class="numpad-overlay" onclick="closeNumpad(event)">
+        <div class="numpad-container" onclick="event.stopPropagation()">
+            <div class="numpad-header">
+                <div class="numpad-label" id="np-label">ВЕС (КГ)</div>
+                <div class="numpad-display" id="np-display">0</div>
+            </div>
+            <div class="numpad-body">
+                <div class="numpad-grid">
+                    <button class="num-btn" onclick="npType('1')">1</button>
+                    <button class="num-btn" onclick="npType('2')">2</button>
+                    <button class="num-btn" onclick="npType('3')">3</button>
+                    <button class="num-btn" onclick="npType('4')">4</button>
+                    <button class="num-btn" onclick="npType('5')">5</button>
+                    <button class="num-btn" onclick="npType('6')">6</button>
+                    <button class="num-btn" onclick="npType('7')">7</button>
+                    <button class="num-btn" onclick="npType('8')">8</button>
+                    <button class="num-btn" onclick="npType('9')">9</button>
+                    <button class="num-btn" onclick="npType('.')">.</button>
+                    <button class="num-btn" onclick="npType('0')">0</button>
+                    <button class="num-btn action-btn" onclick="npBack()">⌫</button>
+                    <button class="num-btn done-btn" onclick="npSave()">ГОТОВО</button>
+                </div>
+                <div class="quick-grid" id="quick-buttons">
+                    </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let exercises = [];
         let workouts = [];
@@ -352,6 +434,87 @@
         let selectedExIdEdit = null; 
         let selectedRoutineIdEdit = null; 
         let workoutBackView = 'home';
+
+        // --- ЛОГИКА SMART NUMPAD ---
+        let npCurrentValue = '';
+        let npTargetIndex = null;
+        let npTargetKey = null; // 'weight' or 'reps'
+
+        function openNumpad(index, key, value) {
+            npTargetIndex = index;
+            npTargetKey = key;
+            npCurrentValue = (value === 0 || value === "0" || value === undefined) ? '' : value.toString();
+            
+            document.getElementById('np-display').innerText = npCurrentValue || '0';
+            document.getElementById('np-label').innerText = key === 'weight' ? 'ВЕС (КГ)' : (key === 'time' ? 'ВРЕМЯ (МИН)' : (key === 'distance' ? 'ДИСТАНЦИЯ (КМ)' : 'ПОВТОРЕНИЯ'));
+            
+            // Генерируем быстрые кнопки в зависимости от типа
+            const qContainer = document.getElementById('quick-buttons');
+            qContainer.innerHTML = '';
+            
+            let increments = [];
+            if (key === 'weight') increments = [1.25, 2.5, 5, 10];
+            else if (key === 'time') increments = [5, 10, 15, 30];
+            else if (key === 'distance') increments = [0.5, 1, 2, 5];
+            else increments = [1, 2, 3, 5]; // reps
+                
+            increments.forEach(val => {
+                const btn = document.createElement('button');
+                btn.className = `quick-btn ${key === 'reps' ? 'reps' : ''}`;
+                btn.innerText = `+${val}`;
+                btn.onclick = () => {
+                    let curr = parseFloat(npCurrentValue) || 0;
+                    curr += val;
+                    // Округляем
+                    if(key === 'weight' || key === 'distance') npCurrentValue = (Math.round(curr * 100) / 100).toString();
+                    else npCurrentValue = Math.round(curr).toString();
+                    
+                    document.getElementById('np-display').innerText = npCurrentValue;
+                    // Вибрация при нажатии
+                    if (window.Telegram?.WebApp?.HapticFeedback) {
+                        Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                    }
+                };
+                qContainer.appendChild(btn);
+            });
+
+            const modal = document.getElementById('numpad-modal');
+            modal.classList.add('active');
+            
+            // Вибрация при открытии
+            if (window.Telegram?.WebApp?.HapticFeedback) {
+                Telegram.WebApp.HapticFeedback.selectionChanged();
+            }
+        }
+
+        function closeNumpad(e) {
+            if (e) e.stopPropagation();
+            document.getElementById('numpad-modal').classList.remove('active');
+        }
+
+        function npType(char) {
+            if (char === '.' && npCurrentValue.includes('.')) return;
+            if (npCurrentValue.length > 6) return; // Лимит символов
+            npCurrentValue += char;
+            document.getElementById('np-display').innerText = npCurrentValue;
+        }
+
+        function npBack() {
+            npCurrentValue = npCurrentValue.slice(0, -1);
+            document.getElementById('np-display').innerText = npCurrentValue || '0';
+        }
+
+        function npSave() {
+            if (npTargetIndex !== null && npTargetKey) {
+                updateSet(npTargetIndex, npTargetKey, npCurrentValue);
+                render(); 
+            }
+            closeNumpad();
+            if (window.Telegram?.WebApp?.HapticFeedback) {
+                Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+            }
+        }
+        // --- КОНЕЦ ЛОГИКИ NUMPAD ---
 
         function showToast(title, message, type = 'info', duration = 3000) {
             const container = document.getElementById('toast-container');
@@ -375,18 +538,6 @@
                 toast.style.animation = 'toast-out 0.3s ease-in forwards';
                 toast.addEventListener('animationend', () => toast.remove());
             }, duration);
-            
-            if (!document.getElementById('toast-animation-style')) {
-                const style = document.createElement('style');
-                style.id = 'toast-animation-style';
-                style.innerHTML = `
-                    @keyframes toast-out {
-                        from { opacity: 1; transform: translateY(0); }
-                        to { opacity: 0; transform: translateY(-20px); }
-                    }
-                `;
-                document.head.appendChild(style);
-            }
         }
 
         if (window.Telegram?.WebApp) {
@@ -476,7 +627,6 @@
             };
             input.click();
         }
-
 
         function render() {
             const views = {
@@ -1516,14 +1666,10 @@
             go('workoutDetails');
         }
 
-        // ИЗМЕНЕНИЕ: Новая функция для обработки нажатия кнопки "назад"
         function handleWorkoutDetailsBack() {
             if (workoutBackView === 'home') {
-                // Если мы пришли с 'home', мы должны сохранить тренировку
-                // saveWorkout() автоматически сохраняет и переходит на 'home'
                 saveWorkout();
             } else {
-                // В противном случае, просто вернемся на предыдущий экран (newWorkout или editWorkout)
                 go(workoutBackView);
             }
         }
@@ -1538,7 +1684,6 @@
             const t = eBase ? eBase.type : 'reps';
             const maxVol = getMaxSetVolume(ex.exerciseId); 
             
-            // ИЗМЕНЕНИЕ: Кнопка "назад" теперь вызывает handleWorkoutDetailsBack()
             let h = `<div class="top-bar fade-in">
                         <button class="back-btn" onclick="handleWorkoutDetailsBack()">←</button>
                         <h2 class="header" style="margin-bottom: 0; max-width: 240px; overflow: hidden; text-overflow: ellipsis;">${ex.exerciseName}</h2>
@@ -1547,36 +1692,40 @@
                      <div class="card fade-in" style="animation-delay: 0.1s;">
                         <h3 class="header" style="font-size: 18px; margin-bottom: 16px;">Подходы</h3>`;
             
+            // Хелпер для создания readonly-инпутов, вызывающих нампад
+            const makeInput = (index, key, val, placeholder, width = 'flex: 1') => {
+                return `<input type="text" readonly value="${val || ''}" 
+                        onclick="openNumpad(${index}, '${key}', '${val || 0}')" 
+                        placeholder="${placeholder}" 
+                        style="${width}; text-align: center; cursor: pointer; background: rgba(255,255,255,0.05); caret-color: transparent;">`;
+            };
+
             ex.sets.forEach((set, index) => {
                 const setVol = calculateSetVolume(set, t);
                 const isPR = (setVol > 0 && Math.abs(setVol - maxVol) < 0.01); 
                 const prLabel = isPR ? ' <span style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">🔥 PR</span>' : '';
                 
                 h += `<div class="set-row fade-in" style="animation-delay: ${index * 0.05}s">
-                        <span class="set-label">Подход ${index + 1}</span>
-                        `;
+                        <span class="set-label">Подход ${index + 1}</span>`;
                 
                 if (t === 'weight') {
-                    h += `<input type="number" value="${set.weight || ''}" onchange="updateSet(${index}, 'weight', this.value)" placeholder="Вес (кг)" style="flex: 1;">
-                          <input type="number" value="${set.reps || ''}" onchange="updateSet(${index}, 'reps', this.value)" placeholder="Повт" style="width: 80px;">
+                    h += `${makeInput(index, 'weight', set.weight, 'Вес (кг)')}
+                          <div style="width: 8px;"></div>
+                          ${makeInput(index, 'reps', set.reps, 'Повт', 'width: 80px')}
                           <button class="delete-btn" onclick="deleteSet(${index})" style="width: 36px; padding: 0;">🗑️</button>
-                          ${prLabel}
-                          `;
+                          ${prLabel}`;
                 } else if (t === 'distance') {
-                     h += `<input type="number" value="${set.reps || ''}" onchange="updateSet(${index}, 'reps', this.value)" placeholder="Км" step="0.1" style="flex: 1;">
+                     h += `${makeInput(index, 'distance', set.reps, 'Км')}
                            <button class="delete-btn" onclick="deleteSet(${index})" style="width: 36px; padding: 0;">🗑️</button>
-                           ${prLabel}
-                           `;
+                           ${prLabel}`;
                 } else if (t === 'time') {
-                     h += `<input type="number" value="${set.reps || ''}" onchange="updateSet(${index}, 'reps', this.value)" placeholder="Мин" style="flex: 1;">
+                     h += `${makeInput(index, 'time', set.reps, 'Мин')}
                            <button class="delete-btn" onclick="deleteSet(${index})" style="width: 36px; padding: 0;">🗑️</button>
-                           ${prLabel}
-                           `;
+                           ${prLabel}`;
                 } else { // reps
-                     h += `<input type="number" value="${set.reps || ''}" onchange="updateSet(${index}, 'reps', this.value)" placeholder="Повторений" style="flex: 1;">
+                     h += `${makeInput(index, 'reps', set.reps, 'Повторений')}
                            <button class="delete-btn" onclick="deleteSet(${index})" style="width: 36px; padding: 0;">🗑️</button>
-                           ${prLabel}
-                           `;
+                           ${prLabel}`;
                 }
                 h += `</div>`;
             });
@@ -1589,12 +1738,20 @@
         function updateSet(index, key, value) {
             const exIndex = currentWorkout.findIndex(ex => ex.exerciseId === selExId);
             if (exIndex === -1) return;
-            const numVal = (key === 'weight' || key === 'reps') ? parseFloat(value) : value;
+            
+            // В нампаде мы уже провалидировали строку, но на всякий случай парсим
+            const numVal = parseFloat(value);
+
             if (!currentWorkout[exIndex].sets[index]) {
                 currentWorkout[exIndex].sets[index] = { setNumber: index + 1 };
                 if (key === 'weight') currentWorkout[exIndex].sets[index].reps = 0;
             }
-            currentWorkout[exIndex].sets[index][key] = isNaN(numVal) ? 0 : numVal;
+            // Сохраняем distance/time в поле reps, как и было раньше в логике
+            if(key === 'distance' || key === 'time') {
+                currentWorkout[exIndex].sets[index].reps = isNaN(numVal) ? 0 : numVal;
+            } else {
+                currentWorkout[exIndex].sets[index][key] = isNaN(numVal) ? 0 : numVal;
+            }
         }
 
         function addSet() {

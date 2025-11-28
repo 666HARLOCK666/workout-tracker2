@@ -716,8 +716,18 @@
             go('editExercise');
         }
 
+        /* --- ИСПРАВЛЕНИЕ 1: Загрузка данных шаблона в currentWorkout происходит здесь --- */
         function editRoutine(id) { 
             selectedRoutineIdEdit = id;
+            
+            const rt = routines.find(r => r.id === id);
+            if (rt) {
+                // Инициализируем currentWorkout копией упражнений шаблона
+                currentWorkout = JSON.parse(JSON.stringify(rt.exercises)); 
+            } else {
+                currentWorkout = [];
+            }
+            
             go('editRoutine');
         }
 
@@ -1392,12 +1402,14 @@
             }
         }
 
+        /* --- ИСПРАВЛЕНИЕ 2: Убрана строка, перезаписывающая currentWorkout --- */
         function renderEditRoutine() {
             if (!selectedRoutineIdEdit) return go('routines');
             const rt = routines.find(r => r.id === selectedRoutineIdEdit);
             if (!rt) return go('routines');
             
-            currentWorkout = JSON.parse(JSON.stringify(rt.exercises)); 
+            // ВАЖНО: Мы больше НЕ перезаписываем currentWorkout здесь!
+            // currentWorkout = JSON.parse(JSON.stringify(rt.exercises)); 
 
             let h = `<div class="top-bar fade-in">
                         <button class="back-btn" onclick="cancelRoutineEdit()">←</button>
@@ -1874,7 +1886,7 @@
                      </div>
                      <div class="card fade-in" style="animation-delay: 0.2s;">
                         <h3 class="header" style="font-size: 18px;">О приложении</h3>
-                        <p style="color: #cbd5e1; font-size: 14px;">💪 Трекер Тренировок **v2.7** (Animations)<br>Все данные хранятся локально</p>
+                        <p style="color: #cbd5e1; font-size: 14px;">💪 Трекер Тренировок **v2.8** (Animations & Bugfixes)<br>Все данные хранятся локально</p>
                      </div>`;
             return h;
         }

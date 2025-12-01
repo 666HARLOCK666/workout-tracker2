@@ -466,15 +466,16 @@
             npTargetKey = key;
             npCurrentValue = (value === 0 || value === "0" || value === undefined) ? '' : value.toString();
             
+            // ИЗМЕНЕНИЕ: ВРЕМЯ (МИН) -> ВРЕМЯ (СЕК)
             document.getElementById('np-display').innerText = npCurrentValue || '0';
-            document.getElementById('np-label').innerText = key === 'weight' ? 'ВЕС (КГ)' : (key === 'time' ? 'ВРЕМЯ (МИН)' : (key === 'distance' ? 'ДИСТАНЦИЯ (КМ)' : 'ПОВТОРЕНИЯ'));
+            document.getElementById('np-label').innerText = key === 'weight' ? 'ВЕС (КГ)' : (key === 'time' ? 'ВРЕМЯ (СЕК)' : (key === 'distance' ? 'ДИСТАНЦИЯ (КМ)' : 'ПОВТОРЕНИЯ'));
             
             const qContainer = document.getElementById('quick-buttons');
             qContainer.innerHTML = '';
             
             let increments = [];
             if (key === 'weight') increments = [1.25, 2.5, 5, 10];
-            else if (key === 'time') increments = [5, 10, 15, 30];
+            else if (key === 'time') increments = [5, 10, 15, 30]; // Оставляем эти инкременты, для секунд они подходят
             else if (key === 'distance') increments = [0.5, 1, 2, 5];
             else increments = [1, 2, 3, 5]; // reps
                 
@@ -716,7 +717,6 @@
             go('editExercise');
         }
 
-        /* --- ИСПРАВЛЕНИЕ 1: Загрузка данных шаблона в currentWorkout происходит здесь --- */
         function editRoutine(id) { 
             selectedRoutineIdEdit = id;
             
@@ -888,7 +888,7 @@
                         const tw = ex.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0);
                         d = `${ex.sets.length} подходов • ${totalReps} повт • ${Math.round(tw)} кг`;
                     } else if (t === 'distance') d = `${ex.sets.length} подходов • ${totalReps.toFixed(1)} км`;
-                    else if (t === 'time') d = `${ex.sets.length} подходов • ${Math.round(totalReps)} мин`;
+                    else if (t === 'time') d = `${ex.sets.length} подходов • ${Math.round(totalReps)} сек`; // ИЗМЕНЕНИЕ: мин -> сек
                     else d = `${ex.sets.length} подходов • ${totalReps} повторений`;
                     
                     h += `<div class="fade-in" style="animation-delay: ${index * 0.05}s; border-bottom: 1px solid rgba(255,255,255,0.08); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="editTodayExercise('${ex.exerciseId}')">
@@ -931,7 +931,7 @@
                     <span style="color: #f8fafc; font-size: 16px; font-weight: 500;">`;
                 if (t === 'weight') h += `${set.weight || 0} кг × ${set.reps || 0} повт${prLabel}`;
                 else if (t === 'distance') h += `${(set.reps || 0).toFixed(1)} км${prLabel}`;
-                else if (t === 'time') h += `${set.reps || 0} мин${prLabel}`;
+                else if (t === 'time') h += `${set.reps || 0} сек${prLabel}`; // ИЗМЕНЕНИЕ: мин -> сек
                 else h += `${set.reps || 0} повторений${prLabel}`;
                 h += `</span></div>`;
             });
@@ -945,7 +945,7 @@
                 sum = `${ex.sets.length} подходов • ${tr.toFixed(1)} км всего`;
             } else if (t === 'time') {
                 const tr = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
-                sum = `${ex.sets.length} подходов • ${Math.round(tr)} мин всего`;
+                sum = `${ex.sets.length} подходов • ${Math.round(tr)} сек всего`; // ИЗМЕНЕНИЕ: мин -> сек
             } else {
                 const tr = ex.sets.reduce((s, set) => s + (set.reps || 0), 0);
                 sum = `${ex.sets.length} подходов • ${tr} повторений`;
@@ -1024,7 +1024,7 @@
                     const tw = ex.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0);
                     d = `${ex.sets.length} подходов • ${totalReps} повт • ${Math.round(tw)} кг`;
                 } else if (t === 'distance') d = `${ex.sets.length} подходов • ${totalReps.toFixed(1)} км`;
-                else if (t === 'time') d = `${ex.sets.length} подходов • ${Math.round(totalReps)} мин`;
+                else if (t === 'time') d = `${ex.sets.length} подходов • ${Math.round(totalReps)} сек`; // ИЗМЕНЕНИЕ: мин -> сек
                 else d = `${ex.sets.length} подходов • ${totalReps} повторений`;
 
                 let setsHTML = '';
@@ -1039,7 +1039,7 @@
                         <span style="color: #f8fafc; font-size: 16px; font-weight: 500;">`;
                     if (t === 'weight') setsHTML += `${set.weight || 0} кг × ${set.reps || 0} повт${prLabel}`;
                     else if (t === 'distance') setsHTML += `${(set.reps || 0).toFixed(1)} км${prLabel}`;
-                    else if (t === 'time') setsHTML += `${set.reps || 0} мин${prLabel}`;
+                    else if (t === 'time') setsHTML += `${set.reps || 0} сек${prLabel}`; // ИЗМЕНЕНИЕ: мин -> сек
                     else setsHTML += `${set.reps || 0} повторений${prLabel}`;
                     setsHTML += `</span></div>`;
                 });
@@ -1117,7 +1117,7 @@
 
             let ul = '', us = '';
             if (ex.type === 'distance') { ul = 'Километры'; us = 'км'; }
-            else if (ex.type === 'time') { ul = 'Минуты'; us = 'мин'; }
+            else if (ex.type === 'time') { ul = 'Секунды'; us = 'сек'; } // ИЗМЕНЕНИЕ: Минуты -> Секунды
             else { ul = 'Повторения'; us = 'повт'; }
 
             let h = `<div class="top-bar fade-in">
@@ -1135,8 +1135,8 @@
                 <div class="stat-item"><p>Общий вес</p><p>${Math.round(tw)} кг</p></div>`;
             else if (ex.type === 'distance') h += `<div class="stat-item"><p>Всего км</p><p>${tr.toFixed(1)}</p></div>
                 <div class="stat-item"><p>Макс за подход</p><p>${mr.toFixed(1)} км</p></div>`;
-            else if (ex.type === 'time') h += `<div class="stat-item"><p>Всего минут</p><p>${Math.round(tr)}</p></div>
-                <div class="stat-item"><p>Макс за подход</p><p>${Math.round(mr)} мин</p></div>`;
+            else if (ex.type === 'time') h += `<div class="stat-item"><p>Всего секунд</p><p>${Math.round(tr)}</p></div> 
+                <div class="stat-item"><p>Макс за подход</p><p>${Math.round(mr)} сек</p></div>`; // ИЗМЕНЕНИЕ: минут -> секунд
             else h += `<div class="stat-item"><p>Повторений</p><p>${tr}</p></div>
                 <div class="stat-item"><p>Макс за подход</p><p>${mr}</p></div>`;
             
@@ -1231,13 +1231,12 @@
                     <option value="reps">Повторения</option>
                     <option value="weight">Вес + повторения</option>
                     <option value="distance">Расстояние (км)</option>
-                    <option value="time">Время (мин)</option>
-                </select>
+                    <option value="time">Время (сек)</option> </select>
                 <button class="btn" style="width: 100%; padding: 14px;" onclick="addEx()">Добавить упражнение</button></div>`;
             
             if (!exercises.length) h += '<div class="empty-state fade-in"><div style="font-size: 48px;">🏋️</div><p>Нет упражнений</p></div>';
             else exercises.forEach((ex, index) => {
-                const tl = ex.type === 'weight' ? '🏋️ Вес' : ex.type === 'distance' ? '🚴 Км' : ex.type === 'time' ? '⏱️ Время' : '🔢 Повт';
+                const tl = ex.type === 'weight' ? '🏋️ Вес' : ex.type === 'distance' ? '🚴 Км' : ex.type === 'time' ? '⏱️ Сек' : '🔢 Повт'; // ИЗМЕНЕНИЕ: Время -> Сек
                 
                 h += `<div class="exercise-item fade-in" style="animation-delay: ${index * 0.05 + 0.1}s" onclick="viewExStats('${ex.id}', 'exercises')">
                     <div>
@@ -1266,8 +1265,7 @@
                     <option value="reps" ${ex.type === 'reps' ? 'selected' : ''}>Повторения</option>
                     <option value="weight" ${ex.type === 'weight' ? 'selected' : ''}>Вес + повторения</option>
                     <option value="distance" ${ex.type === 'distance' ? 'selected' : ''}>Расстояние (км)</option>
-                    <option value="time" ${ex.type === 'time' ? 'selected' : ''}>Время (мин)</option>
-                </select>
+                    <option value="time" ${ex.type === 'time' ? 'selected' : ''}>Время (сек)</option> </select>
                 <button class="btn btn-danger" style="width: 100%; padding: 14px;" onclick="delEx('${ex.id}', true)">🗑️ Удалить упражнение</button>
             </div>`;
             return h;
@@ -1552,7 +1550,7 @@
                         const tw = ex.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0);
                         d = ` (${ex.sets.length} подх., ${Math.round(tw)} кг)`;
                     } else if (t === 'distance') d = ` (${ex.sets.length} подх., ${totalReps.toFixed(1)} км)`;
-                    else if (t === 'time') d = ` (${ex.sets.length} подх., ${Math.round(totalReps)} мин)`;
+                    else if (t === 'time') d = ` (${ex.sets.length} подх., ${Math.round(totalReps)} сек)`; // ИЗМЕНЕНИЕ: мин -> сек
                     else d = ` (${ex.sets.length} подх., ${totalReps} повт)`;
 
                     h += `<div class="exercise-item fade-in" style="animation-delay: ${index * 0.05}s" onclick="viewWorkoutDetails('${ex.exerciseId}', currentView)">
@@ -1754,8 +1752,7 @@
                            <button class="delete-btn" onclick="deleteSet(${index})" style="width: 36px; padding: 0;">🗑️</button>
                            ${prLabel}`;
                 } else if (t === 'time') {
-                     h += `${makeInput(index, 'time', set.reps, 'Мин')}
-                           <button class="delete-btn" onclick="deleteSet(${index})" style="width: 36px; padding: 0;">🗑️</button>
+                     h += `${makeInput(index, 'time', set.reps, 'Сек')} <button class="delete-btn" onclick="deleteSet(${index})" style="width: 36px; padding: 0;">🗑️</button>
                            ${prLabel}`;
                 } else { // reps
                      h += `${makeInput(index, 'reps', set.reps, 'Повторений')}
@@ -1837,7 +1834,7 @@
                         stats = `Макс. за трен.: ${maxVal.toFixed(1)} км`;
                     } else if (ex.type === 'time') {
                         maxVal = exWo.map(w => w.exercises.find(e => e.exerciseId === ex.id).sets.reduce((s, set) => s + (set.reps || 0), 0)).reduce((a, b) => Math.max(a, b), 0);
-                        stats = `Макс. за трен.: ${Math.round(maxVal)} мин`;
+                        stats = `Макс. за трен.: ${Math.round(maxVal)} сек`; // ИЗМЕНЕНИЕ: мин -> сек
                     } else { // reps
                         maxVal = exWo.map(w => w.exercises.find(e => e.exerciseId === ex.id).sets.reduce((s, set) => s + (set.reps || 0), 0)).reduce((a, b) => Math.max(a, b), 0);
                         stats = `Макс. за трен.: ${Math.round(maxVal)} повт`;
